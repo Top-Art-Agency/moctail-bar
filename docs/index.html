@@ -26,8 +26,10 @@ async function go(m, user){
   if (m === mode) return;
   if (mode) { location.reload(); return; }
   mode = m;
-  document.getElementById('css').href = m + '.css';
-  const mod = await import('./' + m + '.js');
+  // dopisek ?v=… wymusza pobranie najnowszej wersji plików po każdej aktualizacji na GitHubie
+  const v = Date.now().toString(36);
+  document.getElementById('css').href = m + '.css?v=' + v;
+  const mod = await import('./' + m + '.js?v=' + v);
   mod.mount(root, user);
 }
 if (!configured) {
