@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moctail bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Figtree:wght@400;500;700&display=swap">
+<style>
+/* Układ: jedna kolumna na telefon; menu jako lista kart, zamówienie w dolnym panelu */
+:root{
+  --bg:#f1f5ee; --card:#ffffff; --line:#d9e3d4; --fg:#15211b; --muted:#5d6c63;
+  --mint:#0c7a57; --mint-ink:#ffffff; --mint-soft:#dcefe5; --citrus:#f4c542; --bad:#c2410c;
+  --f-display:"Unbounded","Arial Rounded MT Bold","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1512; --card:#18211c; --line:#2a3630; --fg:#e8f0eb; --muted:#9aaba1;
+  --mint:#3ccf98; --mint-ink:#062218; --mint-soft:#163128; --citrus:#f4c542; --bad:#ff8a5b; color-scheme:dark }}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px calc(220px + env(safe-area-inset-bottom,0px))}
+header{display:grid;gap:6px;margin-bottom:18px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,8vw,40px);line-height:1.02;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 .zero{color:var(--mint)}
+.state{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.state i{width:9px;height:9px;border-radius:50%;background:var(--mint)}
+.state.closed i{background:var(--bad)}
+.menu{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+.item{display:grid;grid-template-columns:52px minmax(0,1fr) 26px;gap:12px;align-items:center;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.item:focus-visible{outline:3px solid var(--citrus);outline-offset:2px}
+.emo{width:52px;height:52px;border-radius:14px;background:var(--mint-soft);display:grid;place-items:center;font-size:28px}
+.iname{font-weight:700;font-size:17px;line-height:1.2}
+.idesc{font-size:14px;color:var(--muted);margin-top:2px}
+.tick{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:15px;color:transparent}
+.item.on{border-color:var(--mint);background:var(--mint-soft)}
+.item.on .tick{background:var(--mint);border-color:var(--mint);color:var(--mint-ink)}
+.item.off{opacity:.45;cursor:not-allowed}
+.item.off .idesc::after{content:" · chwilowo brak"}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -10px 30px rgba(0,0,0,.12);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));border-radius:20px 20px 0 0}
+.sheet .in{max-width:560px;margin:0 auto;display:grid;gap:12px}
+.chosen{font-family:var(--f-display);font-weight:600;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;width:100%;min-width:0}
+input:focus-visible{outline:3px solid var(--citrus);outline-offset:1px;border-color:transparent}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+button.ghost{font:inherit;font-size:14px;font-weight:600;border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:12px;padding:0 14px;cursor:pointer;white-space:nowrap}
+.go{font-family:var(--f-display);font-weight:600;font-size:17px;border:0;border-radius:14px;padding:16px;background:var(--mint);color:var(--mint-ink);cursor:pointer;width:100%}
+.go:disabled{opacity:.5;cursor:default}
+.err{color:var(--bad);font-size:14px;min-height:1em;margin:0}
+.cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1/1;max-height:46vh}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam::after{content:"";position:absolute;inset:20%;border:3px solid rgba(255,255,255,.9);border-radius:16px}
+.done{display:grid;gap:14px;justify-items:center;text-align:center;padding:30px 0}
+.done .lbl{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.code{font-family:var(--f-display);font-weight:800;font-size:clamp(84px,30vw,140px);line-height:.9;letter-spacing:.04em;color:var(--mint)}
+.done .what{font-size:20px;font-weight:700}
+.done p{margin:0;color:var(--muted);max-width:34ch}
+.ticket{background:var(--card);border:2px dashed var(--line);border-radius:18px;padding:22px 26px;display:grid;gap:8px;justify-items:center}
+.rej{background:color-mix(in srgb,var(--bad) 14%,var(--card));border:1.5px solid var(--bad);border-radius:14px;padding:14px 16px;display:grid;gap:4px;max-width:36ch;text-align:left}
+.rej b{color:var(--bad)}
+.closed-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;color:var(--muted)}
+footer{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.item,.chip,.go{transition:background .15s,border-color .15s,transform .1s}.item:active{transform:scale(.99)}}
+.status{display:grid;gap:4px;justify-items:center;padding:14px 18px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);max-width:36ch}
+.status b{font-size:18px}
+.status span{color:var(--muted);font-size:15px}
+.status.ready{background:var(--mint);border-color:var(--mint);color:var(--mint-ink)}
+.status.ready span{color:var(--mint-ink)}
+.status.bad{border-color:var(--bad)}
+.status.bad b{color:var(--bad)}
+.dots::after{content:"";animation:dots 1.4s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (prefers-reduced-motion:no-preference){.status.ready{animation:pulse 1.6s ease-in-out 3}@keyframes pulse{50%{transform:scale(1.04)}}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow" id="event"></span>
+    <h1 id="barName">Moctail bar</h1>
+    <span class="state" id="state" hidden><i></i><span>Przyjmujemy zamówienia</span></span>
+  </header>
+
+  <main id="choose">
+    <ul class="menu" id="menu"></ul>
+    <div class="closed-box" id="closedBox">Wczytuję menu…</div>
+  </main>
+
+  <main id="done" hidden>
+    <div class="done">
+      <span class="lbl">Twój kod zamówienia</span>
+      <div class="ticket"><div class="code" id="dCode">—</div><div class="what" id="dWhat"></div></div>
+      <div class="status" id="dStatus"><b class="dots">Wysyłam do baru</b><span>Chwilka…</span></div>
+      <p id="dInfo">Zostaw tę stronę otwartą. Gdy drink będzie gotowy, zobaczysz to tutaj, a kod pojawi się na ekranie przy barze.</p>
+      <button class="ghost" id="again" style="padding:12px 18px">Zamów kolejny</button>
+    </div>
+  </main>
+  <footer id="foot">Zamówienie trafia prosto do baru.</footer>
+</div>
+
+<form class="sheet" id="sheet" hidden autocomplete="off">
+  <div class="in">
+    <div class="chosen" id="chosen"></div>
+    <div class="chips" id="opts"></div>
+    <label class="f">Imię (barman zawoła je przy odbiorze)<input id="name" maxlength="24" autocomplete="given-name" enterkeyhint="send"></label>
+    <label class="f" id="codeWrap">Kod z identyfikatora <span id="codeOpt">(opcjonalnie)</span>
+      <span class="row"><input id="guest" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="np. GUEST-0142"><button type="button" class="ghost" id="scanBtn">Zeskanuj</button></span>
+    </label>
+    <div class="cam" id="cam" hidden><video id="video" playsinline muted></video></div>
+    <p class="err" id="err" aria-live="polite"></p>
+    <button class="go" id="go" type="submit">Zamów</button>
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module">
+import { configured, db, fs, errText } from './fb.js';
+const $ = s => document.querySelector(s);
+const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+
+/* Który bar: identyfikator przychodzi w linku z kodu QR (…?b=…). */
+const QS = new URLSearchParams(location.search);
+let BAR = QS.get('b') || store.get('moctail-bar') || '';
+if (!/^[A-Za-z0-9_-]{6,64}$/.test(BAR)) BAR = '';
+if (BAR) store.set('moctail-bar', BAR);
+
+let M = {barName:'Moctail bar', event:'', open:true, requireCode:false, options:[], items:[]};
+let pick = null, opts = new Set(), sending = false, menuState = !configured ? 'nocfg' : (BAR ? 'loading' : 'nobar'), unsub = null;
+
+const pre = store.get('moctail-me') || {};
+$('#name').value = QS.get('imie') || pre.name || '';
+$('#guest').value = QS.get('kod') || pre.guest || '';
+
+function render(){
+  const nm = M.barName || 'Moctail bar', h = $('#barName'); h.textContent = '';
+  const k = nm.indexOf('0%');
+  if (k >= 0) { const z = document.createElement('span'); z.className = 'zero'; z.textContent = '0%'; h.append(nm.slice(0,k), z, nm.slice(k+2)); } else h.textContent = nm;
+  document.title = nm;
+  $('#event').textContent = M.event || 'Zamów bez kolejki';
+  const st = $('#state'); st.hidden = menuState !== 'ok'; st.classList.toggle('closed', !M.open);
+  st.lastChild.textContent = M.open ? 'Przyjmujemy zamówienia' : 'Bar chwilowo zamknięty';
+  const box = $('#closedBox');
+  const msg = {nocfg:'Strona nie jest jeszcze połączona z bazą. Obsługa: uzupełnij plik firebase-config.js.',
+    nobar:'Zeskanuj kod QR przy barze, żeby otworzyć menu.', loading:'Wczytuję menu…', missing:'Nie ma takiego baru. Zeskanuj aktualny kod QR przy barze.'}[menuState];
+  if (menuState === 'error') { box.hidden = false; box.innerHTML = 'Nie udało się wczytać menu. Sprawdź internet.<br><button class="ghost" style="margin-top:10px;padding:10px 14px" onclick="location.reload()">Spróbuj ponownie</button>'; }
+  else if (msg) { box.hidden = false; box.textContent = msg; }
+  else { box.hidden = !!M.open; box.textContent = 'Bar chwilowo nie przyjmuje zamówień. Zajrzyj za chwilę albo podejdź do baru.'; }
+  $('#menu').hidden = menuState !== 'ok' || !M.open;
+  $('#codeOpt').textContent = M.requireCode ? '(wymagany)' : '(opcjonalnie)';
+  if (pick && !(M.items || []).some(i => i.id === pick.id && i.on)) pick = null;
+  $('#menu').replaceChildren(...(M.items || []).map(it => {
+    const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
+    const on = pick && pick.id === it.id;
+    b.className = 'item' + (it.on ? '' : ' off') + (on ? ' on' : ''); b.disabled = !it.on; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.innerHTML = '<span class="emo"></span><span><div class="iname"></div><div class="idesc"></div></span><span class="tick">✓</span>';
+    b.querySelector('.emo').textContent = it.emoji || '🍹'; b.querySelector('.iname').textContent = it.name; b.querySelector('.idesc').textContent = it.desc || '';
+    b.onclick = () => { pick = on ? null : it; render(); };
+    li.appendChild(b); return li;
+  }));
+  $('#opts').replaceChildren(...(M.options || []).map(o => {
+    const c = document.createElement('button'); c.type = 'button'; c.className = 'chip' + (opts.has(o) ? ' on' : ''); c.textContent = o;
+    c.onclick = () => { opts.has(o) ? opts.delete(o) : opts.add(o); render(); }; return c;
+  }));
+  $('#sheet').hidden = !(pick && M.open && menuState === 'ok' && $('#done').hidden);
+  if (pick) { $('#chosen').textContent = (pick.emoji || '🍹') + ' ' + pick.name; $('#go').textContent = 'Zamów ' + pick.name; }
+}
+
+/* Menu czytamy raz i odświeżamy co 5 minut (oszczędza darmowy limit odczytów Firebase). */
+async function loadMenu(){
+  if (!configured || !BAR) return;
+  try {
+    const s = await fs.getDoc(fs.doc(db, 'bars', BAR));
+    if (!s.exists()) { menuState = 'missing'; render(); return; }
+    M = Object.assign(M, s.data()); menuState = 'ok'; render();
+  } catch(e) { if (menuState !== 'ok') { menuState = 'error'; render(); } }
+}
+
+const ALPH = 'ACEFHJKLMNPRTUVWXY3479';
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => ALPH[b % ALPH.length]).join('');
+
+$('#sheet').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (sending || !pick) return;
+  const name = $('#name').value.trim(), guest = $('#guest').value.trim();
+  $('#err').textContent = '';
+  if (!name) { $('#err').textContent = 'Wpisz imię, żeby barman wiedział, kogo zawołać.'; $('#name').focus(); return; }
+  if (M.requireCode && !guest) { $('#err').textContent = 'Wpisz albo zeskanuj kod z identyfikatora.'; $('#guest').focus(); return; }
+  const last = store.get('moctail-last');
+  if (last && Date.now() - last.t < 60000) { $('#err').textContent = 'Poprzednie zamówienie wysłałeś przed chwilą. Odczekaj minutę.'; return; }
+  sending = true; $('#go').disabled = true; $('#go').textContent = 'Wysyłam…';
+  const code = rnd(3);
+  try {
+    const ref = await fs.addDoc(fs.collection(db, 'bars', BAR, 'orders'), {
+      code, item: pick.id, itemName: pick.name.slice(0, 40), opts: [...opts].slice(0, 6), name: name.slice(0, 24), guest: guest.slice(0, 40),
+      status: 'czeka', created: fs.serverTimestamp()});
+    store.set('moctail-me', {name, guest});
+    const rec = {t: Date.now(), id: ref.id, code, what: pick.name, name, bar: BAR};
+    store.set('moctail-last', rec);
+    showDone(rec);
+  } catch(e) {
+    const c = (e && e.code) || '';
+    $('#err').textContent = c.includes('permission-denied') ? 'Bar chwilowo nie przyjmuje zamówień. Odśwież stronę za chwilę.' : errText(e);
+    loadMenu();
+  }
+  sending = false; $('#go').disabled = false; if (pick) $('#go').textContent = 'Zamów ' + pick.name;
+});
+
+const STAT = {
+  czeka:  ['', 'Wysłano do baru', 'Czekamy na potwierdzenie…', true],
+  nowe:   ['', 'Przyjęte, w przygotowaniu', '', false],
+  gotowe: ['ready', 'Gotowe! Odbierz przy barze', 'Pokaż ten kod barmanowi.', false],
+  wydane: ['', 'Wydane. Smacznego!', '', false],
+  odrzucone: ['bad', 'Zamówienie nie zostało przyjęte', '', false],
+  anulowane: ['bad', 'Bar anulował zamówienie', 'Podejdź do baru, jeśli to pomyłka.', false],
+};
+function setStatus(o){
+  const [cls, title, sub, dots] = STAT[o.status] || STAT.czeka;
+  const el = $('#dStatus'); el.className = 'status ' + cls;
+  const extra = o.status === 'nowe' && o.no ? 'Numer zamówienia: #' + o.no : (o.status === 'odrzucone' ? (o.reason || '') : sub);
+  el.innerHTML = '<b></b><span></span>'; el.firstChild.textContent = title; el.lastChild.textContent = extra;
+  if (dots) el.firstChild.classList.add('dots');
+  if (o.status === 'gotowe') { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
+  if (['wydane', 'odrzucone', 'anulowane'].includes(o.status)) {
+    if (unsub) { unsub(); unsub = null; }
+    const l = store.get('moctail-last'); if (l) { l.done = true; if (o.status !== 'wydane') l.t = 0; store.set('moctail-last', l); }
+  }
+}
+function showDone(rec){
+  camOff();
+  $('#choose').hidden = true; $('#done').hidden = false; $('#sheet').hidden = true;
+  $('#dCode').textContent = rec.code; $('#dWhat').textContent = rec.what + ' · ' + rec.name;
+  setStatus({status:'czeka'});
+  if (unsub) unsub();
+  unsub = fs.onSnapshot(fs.doc(db, 'bars', rec.bar || BAR, 'orders', rec.id), s => { if (s.exists()) setStatus(s.data()); }, () => {});
+  window.scrollTo(0, 0);
+}
+$('#again').onclick = () => { if (unsub) { unsub(); unsub = null; } $('#done').hidden = true; $('#choose').hidden = false; pick = null; opts.clear(); loadMenu(); render(); };
+
+/* skan kodu z identyfikatora */
+let stream = null;
+async function camOn(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#err').textContent = 'Ta przeglądarka nie obsługuje aparatu. Wpisz kod ręcznie.'; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+    const v = $('#video'); v.srcObject = stream; await v.play();
+    $('#cam').hidden = false; $('#scanBtn').textContent = 'Zamknij'; tick();
+  } catch(e) { $('#err').textContent = 'Nie udało się włączyć aparatu. Wpisz kod ręcznie.'; stream = null; }
+}
+function camOff(){ if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('#cam').hidden = true; $('#scanBtn').textContent = 'Zeskanuj'; }
+const cv = document.createElement('canvas'), cx = cv.getContext('2d', {willReadFrequently:true});
+function tick(){
+  if (!stream) return;
+  const v = $('#video');
+  if (v.readyState >= 2 && window.jsQR) {
+    const w = 400, h = Math.round(400 * v.videoHeight / v.videoWidth);
+    cv.width = w; cv.height = h; cx.drawImage(v, 0, 0, w, h);
+    const q = jsQR(cx.getImageData(0, 0, w, h).data, w, h, {inversionAttempts:'dontInvert'});
+    if (q && q.data) {
+      let code = q.data.trim();
+      try { const u = new URL(code); code = u.searchParams.get('kod') || u.searchParams.get('code') || code; } catch(e) {}
+      $('#guest').value = code.slice(0, 40); camOff(); if (navigator.vibrate) navigator.vibrate(60); return;
+    }
+  }
+  setTimeout(tick, 200);
+}
+$('#scanBtn').onclick = () => stream ? camOff() : camOn();
+
+const last = store.get('moctail-last');
+if (configured && last && last.id && !last.done && last.bar === BAR && Date.now() - last.t < 3 * 3600e3) showDone(last);
+render();
+loadMenu();
+setInterval(() => { if (!document.hidden) loadMenu(); }, 5 * 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadMenu(); });
+</script>
+</body>
+</html>

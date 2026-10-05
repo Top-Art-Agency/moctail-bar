@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Reguły bezpieczeństwa dla Moctail bar.
+// Wklej całość w Firebase Console → Firestore Database → Reguły → Opublikuj.
+//
+// bars/{uid}                  menu i ustawienia baru (czyta każdy, zmienia tylko obsługa)
+// bars/{uid}/orders/{id}      zamówienia (gość może złożyć i podejrzeć swoje po numerze)
+// bars/{uid}/public/board     tablica dla ekranu wydawki (czyta każdy)
+// bars/{uid}/private/counter  licznik numerów zamówień (tylko obsługa)
+//
+// {uid} to identyfikator konta obsługi z Firebase Authentication.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(barId) {
+      return request.auth != null && request.auth.uid == barId;
+    }
+
+    match /bars/{barId} {
+      allow read: if true;
+      allow write: if isOwner(barId);
+
+      match /orders/{orderId} {
+        allow get: if true;
+        allow list, update, delete: if isOwner(barId);
+        allow create: if get(/databases/$(database)/documents/bars/$(barId)).data.open == true
+          && request.resource.data.keys().hasOnly(['code', 'item', 'itemName', 'opts', 'name', 'guest', 'status', 'created'])
+          && request.resource.data.status == 'czeka'
+          && request.resource.data.code is string && request.resource.data.code.size() <= 4
+          && request.resource.data.item is string && request.resource.data.item.size() <= 40
+          && request.resource.data.itemName is string && request.resource.data.itemName.size() <= 40
+          && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 24
+          && request.resource.data.guest is string && request.resource.data.guest.size() <= 40
+          && request.resource.data.opts is list && request.resource.data.opts.size() <= 6
+          && request.resource.data.created == request.time;
+      }
+
+      match /public/{docId} {
+        allow read: if true;
+        allow write: if isOwner(barId);
+      }
+
+      match /private/{docId} {
+        allow read, write: if isOwner(barId);
+      }
+    }
+  }
+}

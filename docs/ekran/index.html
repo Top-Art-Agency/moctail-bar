@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ekran wydawki</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Figtree:wght@500;700&display=swap">
+<style>
+/* Ekran przy barze: celowo zawsze ciemny, czytelny z kilku metrów */
+:root{--bg:#0d1411;--tile:#15201b;--line:#25332c;--fg:#eef6f1;--muted:#8ea499;--mint:#3ccf98;--citrus:#f4c542;color-scheme:dark;
+  --f-display:"Unbounded","Arial Rounded MT Bold","Segoe UI",system-ui,sans-serif;--f-body:"Figtree","Helvetica Neue",Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);display:grid;grid-template-rows:auto 1fr auto}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:22px 30px 0;flex-wrap:wrap}
+header h1{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,3vw,40px);margin:0}
+header .clock{font-family:var(--f-display);font-weight:600;font-size:clamp(18px,2.4vw,32px);color:var(--muted);font-variant-numeric:tabular-nums}
+main{display:grid;grid-template-columns:2fr 1fr;gap:24px;padding:22px 30px;min-height:0}
+@media (max-width:800px){main{grid-template-columns:1fr}}
+h2{font-size:clamp(14px,1.5vw,20px);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:700}
+.ready{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:14px;align-content:start}
+.r{background:var(--tile);border:2px solid var(--mint);border-radius:18px;padding:16px 18px;display:grid;gap:4px}
+.r .c{font-family:var(--f-display);font-weight:800;font-size:clamp(54px,6.5vw,96px);line-height:.95;color:var(--mint);letter-spacing:.04em}
+.r .n{font-size:clamp(18px,2vw,28px);font-weight:700}
+.r .d{font-size:clamp(14px,1.4vw,20px);color:var(--muted)}
+.prep{display:flex;flex-wrap:wrap;gap:10px;align-content:start}
+.p{font-family:var(--f-display);font-weight:600;font-size:clamp(24px,2.6vw,40px);padding:6px 14px;border-radius:12px;background:var(--tile);border:1px solid var(--line);color:var(--fg)}
+.none{color:var(--muted);font-size:clamp(16px,1.6vw,22px)}
+footer{padding:0 30px 22px;color:var(--muted);font-size:clamp(14px,1.4vw,20px)}
+footer b{color:var(--citrus)}
+@media (prefers-reduced-motion:no-preference){.r{animation:pop .5s ease-out}@keyframes pop{from{transform:scale(.94)}to{transform:none}}}
+</style>
+</head>
+<body>
+<header><h1 id="bar">Moctail bar</h1><span class="clock" id="clock"></span></header>
+<main>
+  <section><h2>Gotowe do odbioru</h2><div class="ready" id="ready"></div></section>
+  <section><h2>W przygotowaniu</h2><div class="prep" id="prep"></div></section>
+</main>
+<footer id="foot">Zeskanuj kod QR przy barze, żeby zamówić bez kolejki. Odbierz drink, gdy zobaczysz swój <b>kod</b>.</footer>
+<script src="../firebase-config.js"></script>
+<script type="module">
+import { configured, db, fs } from '../fb.js';
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const QS = new URLSearchParams(location.search);
+const BAR = QS.get('b') || '';
+const clock = () => document.getElementById('clock').textContent = new Date().toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'});
+clock(); setInterval(clock, 15000);
+function msg(t){ document.getElementById('ready').replaceChildren(el('div', 'none', t)); document.getElementById('prep').replaceChildren(); }
+if (!configured) msg('Strona nie jest połączona z bazą (plik firebase-config.js).');
+else if (!/^[A-Za-z0-9_-]{6,64}$/.test(BAR)) msg('Otwórz ten ekran z linku w panelu baru (sekcja Ekran wydawki).');
+else fs.onSnapshot(fs.doc(db, 'bars', BAR, 'public', 'board'), snap => {
+  if (!snap.exists()) return msg('Czekam na pierwsze dane z panelu baru…');
+  const s = snap.data();
+  document.getElementById('bar').textContent = s.barName || 'Moctail bar';
+  const os = s.orders || [];
+  const rd = os.filter(o => o.status === 'gotowe'), pr = os.filter(o => o.status === 'nowe');
+  document.getElementById('ready').replaceChildren(...(rd.length ? rd.map(o => { const t = el('div', 'r'); t.append(el('div', 'c', o.code), el('div', 'n', o.name || ''), el('div', 'd', o.itemName)); return t; }) : [el('div', 'none', 'Za chwilę pojawią się tu gotowe drinki.')]));
+  document.getElementById('prep').replaceChildren(...(pr.length ? pr.map(o => el('span', 'p', o.code)) : [el('div', 'none', 'Brak zamówień w kolejce.')]));
+  document.getElementById('foot').innerHTML = s.open ? 'Zeskanuj kod QR przy barze, żeby zamówić bez kolejki. Odbierz drink, gdy zobaczysz swój <b>kod</b>.' : 'Zamówienia przez telefon są chwilowo wstrzymane.';
+}, () => msg('Brak połączenia. Sprawdź internet, ekran odświeży się sam.'));
+/* ekran nie gaśnie */
+async function wake(){ try { if (navigator.wakeLock && !document.hidden) await navigator.wakeLock.request('screen'); } catch(e) {} }
+wake(); document.addEventListener('visibilitychange', wake);
+</script>
+</body>
+</html>

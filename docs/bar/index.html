@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel baru</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Archivo:wght@400;600&family=Archivo+Narrow:wght@700&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@800&family=Bebas+Neue&family=Pacifico&family=Playfair+Display:ital,wght@1,800&family=Fredoka:wght@700&display=swap">
+<link rel="stylesheet" href="../style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+.wrap{max-width:1200px}
+.top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.switch{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.switch input{width:auto;transform:scale(1.3)}
+.switch.off{background:var(--bad-soft);border-color:var(--bad)}
+.queue{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.queue{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:10px}
+.col h2{display:flex;justify-content:space-between;align-items:center}
+.col h2 b{font-family:var(--f-mono);font-size:14px;color:var(--fg)}
+.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.ord{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;min-width:0}
+.ord.ready{background:var(--ok-soft);border-color:var(--ok)}
+.ord.noprint{border-color:var(--bad);box-shadow:inset 4px 0 0 var(--bad)}
+.ord .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ord .code{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1;letter-spacing:.04em}
+.ord .no{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.ord .drink{font-weight:600;font-size:16px}
+.ord .opts{font-size:13px;color:var(--warn);font-weight:600}
+.ord .who{font-size:13px;color:var(--muted)}
+.ord .warn{font-size:12px;color:var(--bad)}
+.ord .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.ord .acts button{padding:6px 10px;font-size:13px}
+.empty-col{color:var(--muted);font-size:13px;padding:18px;border:1px dashed var(--line);border-radius:12px;text-align:center}
+.grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.mrow{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1.4fr) auto auto;gap:8px;align-items:center}
+@media (max-width:640px){.mrow{grid-template-columns:52px minmax(0,1fr) auto auto}.mrow .desc{grid-column:2/-1;grid-row:2}}
+.mrow input.emo{text-align:center;font-size:20px;padding:4px}
+.mlist{display:grid;gap:8px}
+.steps{display:grid;gap:14px;counter-reset:s;margin:0;padding:0;list-style:none}
+.steps li{display:grid;gap:6px;padding-left:34px;position:relative}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:12px;font-weight:700}
+.qrbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.qrbox canvas{background:#fff;padding:8px;border-radius:8px;border:1px solid var(--line);max-width:160px;height:auto}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+.stat{display:flex;flex-wrap:wrap;gap:8px}
+.gate{max-width:440px;margin:8vh auto;display:grid;gap:14px}
+.gate h1{margin:0}
+.code-box{font-family:var(--f-mono);font-size:12px;background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre}
+.warnbox{background:var(--warn-soft);border-radius:8px;padding:10px 12px;font-size:13px}
+nav.top .right{margin-left:auto;display:flex;gap:14px;align-items:center}
+</style>
+
+</head>
+<body>
+<nav class="top"><b>Moctail bar</b><a href="./" class="on">Panel baru</a><a href="#" id="navScreen" target="_blank">Ekran wydawki</a><a href="#" id="navMenu" target="_blank">Menu gościa</a>
+  <span class="right"><span class="muted" id="who"></span><a href="#" id="logout" hidden>Wyloguj</a></span></nav>
+
+<!-- brak konfiguracji -->
+<div class="gate card" id="vSetup" hidden>
+  <h1>Połącz z Firebase</h1>
+  <p class="muted" style="margin:0">Strona nie ma jeszcze ustawień bazy danych. Uzupełnij plik <span class="mono">docs/firebase-config.js</span> w repozytorium na GitHubie wartościami z Firebase Console. Instrukcja krok po kroku jest w pliku README.md.</p>
+</div>
+
+<!-- logowanie -->
+<form class="gate card" id="vLogin" hidden autocomplete="on">
+  <h1>Panel baru</h1>
+  <p class="muted" style="margin:0">Zaloguj się kontem obsługi baru (zakładasz je w Firebase Console → Authentication).</p>
+  <label class="f">E-mail<input id="lEmail" type="email" autocomplete="username" required></label>
+  <label class="f">Hasło<input id="lPass" type="password" autocomplete="current-password" required></label>
+  <p class="err danger" id="lErr" style="margin:0;min-height:1em"></p>
+  <button class="primary" type="submit" id="lGo">Zaloguj</button>
+</form>
+
+<div class="wrap stack" id="vApp" hidden>
+  <div class="top">
+    <div>
+      <h1 id="title">Moctail bar</h1>
+      <div class="inline"><span class="pill" id="conn">Łączę…</span><span class="pill" id="prn"></span></div>
+    </div>
+    <div class="inline">
+      <label class="switch" id="openSw"><input type="checkbox" id="open"> <span id="openTxt">Przyjmuję zamówienia</span></label>
+      <button id="test">Testowe zamówienie</button>
+    </div>
+  </div>
+
+  <section class="queue">
+    <div class="col"><h2>Do zrobienia <b id="nNew">0</b></h2><div class="orders" id="qNew"></div></div>
+    <div class="col"><h2>Gotowe do odbioru <b id="nReady">0</b></h2><div class="orders" id="qReady"></div></div>
+  </section>
+
+  <div class="stat" id="stats"></div>
+
+  <section class="card">
+    <details>
+      <summary>Historia: odrzucone <b id="nRej">0</b> · wydane dziś <b id="nDone">0</b></summary>
+      <div class="tablewrap" style="margin-top:10px"><table>
+        <thead><tr><th>Kod</th><th>Nr</th><th>Godz.</th><th>Drink</th><th>Gość</th><th>Status</th><th></th></tr></thead>
+        <tbody id="hist"></tbody>
+      </table></div>
+      <div class="inline" style="margin-top:10px"><button id="csv">Pobierz historię (CSV)</button><button class="danger" id="resetNo">Zacznij numerację od 1</button></div>
+    </details>
+  </section>
+
+  <div class="grid2">
+    <section class="card stack" style="gap:12px">
+      <h2 style="margin:0">Menu</h2>
+      <p class="muted" style="margin:0;font-size:13px">Zmiany widać na telefonach gości po odświeżeniu strony (same odświeżają co kilka minut). Odznacz drink, gdy skończy się składnik.</p>
+      <div class="mlist" id="menu"></div>
+      <div class="inline"><button id="addItem">+ Dodaj drink</button><button class="primary" id="saveMenu">Zapisz menu</button></div>
+      <label class="f">Dodatki do wyboru (oddziel przecinkami)<input id="options" placeholder="bez lodu, mniej słodki"></label>
+      <div class="row">
+        <label class="f">Nazwa baru<input id="barName" maxlength="40"></label>
+        <label class="f">Podtytuł (np. nazwa wydarzenia)<input id="event" maxlength="40"></label>
+      </div>
+      <div class="row">
+        <label class="f">Zamówień w przygotowaniu na jeden kod (0 = bez limitu)<input id="limit" type="number" min="0" max="20"></label>
+        <label class="check" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="reqCode"> Wymagaj kodu z identyfikatora</label>
+      </div>
+      <div><button class="primary" id="saveSet">Zapisz ustawienia</button></div>
+    </section>
+
+    <section class="card stack" style="gap:12px">
+      <h2 style="margin:0">Kod QR dla gości</h2>
+      <label class="f">Link do menu (kod QR prowadzi tutaj)
+        <span class="row" style="grid-template-columns:minmax(0,1fr) auto"><input id="guestLink" readonly class="mono" style="font-size:12px"><button id="copyLink">Kopiuj</button></span></label>
+      <span class="muted" style="font-size:12px">Tekst na naklejce obok kodu (puste pole = bez tej linii)</span>
+      <input id="qrT1" maxlength="40" placeholder="Duży napis, linia 1">
+      <input id="qrT2" maxlength="40" placeholder="Duży napis, linia 2">
+      <input id="qrT3" maxlength="40" placeholder="Mały dopisek na dole">
+      <label class="f">Czcionka<select id="qrFont"></select></label>
+      <span class="muted" style="font-size:12px">Podgląd naklejki:</span>
+      <canvas id="qrPrev" style="background:#fff;border:1px solid var(--line);border-radius:6px;max-width:100%;height:auto"></canvas>
+      <div class="qrbox"><canvas id="qr" width="10" height="10"></canvas>
+        <span class="stack" style="gap:8px"><button class="primary" id="printQr">Drukuj naklejkę z kodem</button><span class="muted" style="font-size:12px">Do plakatu: zrzut ekranu kodu obok.</span></span></div>
+      <p class="muted" style="margin:0;font-size:12px">Link z dopiskiem <span class="mono">&amp;kod=GUEST-0142&amp;imie=Anna</span> wypełni gościowi pola automatycznie.</p>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card stack" style="gap:12px">
+      <h2 style="margin:0">Drukarka na tym urządzeniu</h2>
+      <label class="check"><input type="checkbox" id="pAuto"> To urządzenie drukuje naklejkę przy każdym nowym zamówieniu</label>
+      <p class="warnbox" style="margin:0">Włącz to tylko na jednym urządzeniu, do którego jest podłączona drukarka. Inaczej naklejki wydrukują się podwójnie.</p>
+      <div class="row">
+        <label class="f">Szerokość etykiety (mm)<input id="pW" type="number" min="20" max="120"></label>
+        <label class="f">Wysokość etykiety (mm)<input id="pH" type="number" min="15" max="200"></label>
+        <label class="f">Czcionka naklejki<select id="pFont"></select></label>
+      </div>
+      <div class="inline"><button class="primary" id="pSave">Zapisz</button><button id="pTest">Wydrukuj testową naklejkę</button></div>
+      <details>
+        <summary>Jak drukować bez okienka „Drukuj” (zalecane)</summary>
+        <div class="stack" style="gap:8px;margin-top:8px;font-size:13px">
+          <span>1. Zainstaluj drukarkę etykiet w systemie (sterownik producenta) i ustaw ją jako <b>drukarkę domyślną</b>. W jej preferencjach ustaw rozmiar papieru taki jak wyżej.</span>
+          <span>2. Zamknij całkowicie Chrome i uruchom go z opcją cichego drukowania:</span>
+          <b>Windows</b> (skrót na pulpicie → Właściwości → Element docelowy):
+          <div class="code-box" id="cmdWin"></div>
+          <b>macOS</b> (Terminal):
+          <div class="code-box" id="cmdMac"></div>
+          <span>Bez tego Chrome przy każdej naklejce pokaże okno drukowania. Wtedy kliknij „Drukuj”; zamówienia i tak działają.</span>
+        </div>
+      </details>
+    </section>
+
+    <section class="card stack" style="gap:12px">
+      <h2 style="margin:0">Ekran wydawki</h2>
+      <p class="muted" style="margin:0;font-size:13px">Otwórz ten link na telewizorze, laptopie albo tablecie przy barze, w dowolnej sieci. Nie wymaga logowania i pokazuje tylko kody, imiona i nazwy drinków.</p>
+      <span class="row" style="grid-template-columns:minmax(0,1fr) auto"><input id="screenLink" readonly class="mono" style="font-size:12px"><button id="copyScreen">Kopiuj</button></span>
+      <div class="qrbox"><canvas id="qrScreen" width="10" height="10"></canvas><span class="muted" style="font-size:12px">Zeskanuj tabletem, żeby otworzyć ekran.</span></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="../firebase-config.js"></script>
+<script type="module">
+import { configured, db, auth, fs, au, errText } from '../fb.js';
+const $ = s => document.querySelector(s);
+const h = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); kids.forEach(k => k != null && e.append(k)); return e; };
+function toast(t){ const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2800); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const FONTS = [['Unbounded:800','Unbounded: nowoczesna, okrągła'],['Bebas Neue:400','Bebas Neue: wysoka, plakatowa'],['Pacifico:400','Pacifico: odręczna'],
+  ['Playfair Display:italic 800','Playfair: elegancka kursywa'],['Fredoka:700','Fredoka: zaokrąglona'],['Archivo Narrow:700','Archivo Narrow: prosta, wąska']];
+['#qrFont', '#pFont'].forEach(id => $(id).replaceChildren(...FONTS.map(([v, t]) => h('option', {value:v, textContent:t}))));
+
+const DEFAULT_BAR = {
+  barName: 'Moctail bar 0%', event: '', open: true, requireCode: false, limitPerCode: 1,
+  options: ['bez lodu', 'mniej słodki', 'bez cukru', 'extra mięta'],
+  qrText1: 'Zamów', qrText2: 'moctail', qrText3: 'Zeskanuj aparatem', qrFont: 'Unbounded:800',
+  items: [
+    {id:'virgin-mojito', name:'Virgin Mojito', desc:'limonka, mięta, cukier trzcinowy, soda', emoji:'🌿', on:true},
+    {id:'nojito-truskawka', name:'Truskawkowe Nojito', desc:'truskawka, limonka, mięta, soda', emoji:'🍓', on:true},
+    {id:'ginger-fizz', name:'Ginger Fizz', desc:'imbir, cytryna, miód, tonik', emoji:'🫚', on:true},
+    {id:'passion-spritz', name:'Passion Spritz', desc:'marakuja, pomarańcza, tonik', emoji:'🥭', on:true},
+    {id:'blue-lagoon', name:'Blue Lagoon 0%', desc:'blue curaçao 0%, cytryna, sprite', emoji:'🫐', on:true},
+    {id:'lemoniada-lawenda', name:'Lemoniada lawendowa', desc:'cytryna, syrop lawendowy, woda gazowana', emoji:'💜', on:true}]};
+
+/* ustawienia drukarki trzymamy osobno na każdym urządzeniu */
+const P = Object.assign({auto:false, w:100, h:50, font:'Archivo Narrow:700'}, (() => { try { return JSON.parse(localStorage.getItem('moctail-print')) || {}; } catch(e) { return {}; } })());
+const saveP = () => { try { localStorage.setItem('moctail-print', JSON.stringify(P)); } catch(e) {} };
+
+let UID = null, BAR = null, ACTIVE = [], HIST = [], menuDirty = false, unsubs = [], lastIds = null;
+const refs = {};
+const ACT = ['czeka', 'nowe', 'gotowe'];
+const ts = o => o.created && o.created.toDate ? o.created.toDate() : new Date();
+const hhmm = d => d.toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'});
+
+/* ---------- logowanie ---------- */
+function show(v){ ['#vSetup', '#vLogin', '#vApp'].forEach(id => $(id).hidden = id !== v); }
+if (!configured) show('#vSetup');
+else au.onAuthStateChanged(auth, user => {
+  unsubs.forEach(u => u()); unsubs = [];
+  if (!user) { UID = null; show('#vLogin'); $('#logout').hidden = true; $('#who').textContent = ''; return; }
+  UID = user.uid; $('#who').textContent = user.email || ''; $('#logout').hidden = false;
+  show('#vApp'); start();
+});
+$('#vLogin').addEventListener('submit', async ev => {
+  ev.preventDefault(); $('#lErr').textContent = ''; $('#lGo').disabled = true;
+  try { await au.signInWithEmailAndPassword(auth, $('#lEmail').value.trim(), $('#lPass').value); }
+  catch(e) { $('#lErr').textContent = errText(e); }
+  $('#lGo').disabled = false;
+});
+$('#logout').onclick = e => { e.preventDefault(); au.signOut(auth); };
+
+/* ---------- start: nasłuch bazy ---------- */
+async function start(){
+  refs.bar = fs.doc(db, 'bars', UID);
+  refs.counter = fs.doc(db, 'bars', UID, 'private', 'counter');
+  refs.board = fs.doc(db, 'bars', UID, 'public', 'board');
+  refs.orders = fs.collection(db, 'bars', UID, 'orders');
+  try {
+    const s = await fs.getDoc(refs.bar);
+    if (!s.exists()) { await fs.setDoc(refs.bar, DEFAULT_BAR); toast('Utworzono bar z przykładowym menu. Zmień je poniżej.'); }
+  } catch(e) { $('#conn').className = 'pill bad'; $('#conn').textContent = errText(e); return; }
+  unsubs.push(fs.onSnapshot(refs.bar, s => { BAR = Object.assign({}, DEFAULT_BAR, s.data()); renderBar(); pushBoard(); }, err));
+  unsubs.push(fs.onSnapshot(fs.query(refs.orders, fs.where('status', 'in', ACT)), snap => {
+    $('#conn').className = 'pill ok'; $('#conn').textContent = snap.metadata.fromCache ? 'Brak internetu, pokazuję ostatni stan' : 'Odbieram zamówienia';
+    if (snap.metadata.fromCache) $('#conn').className = 'pill warn';
+    ACTIVE = snap.docs.map(d => Object.assign({id:d.id}, d.data())).sort((a, b) => (a.no || 1e9) - (b.no || 1e9) || ts(a) - ts(b));
+    ACTIVE.filter(o => o.status === 'czeka').forEach(accept);
+    autoPrint();
+    renderQueue(); pushBoard();
+  }, err));
+  unsubs.push(fs.onSnapshot(fs.query(refs.orders, fs.orderBy('created', 'desc'), fs.limit(300)), snap => {
+    HIST = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderHist();
+  }, err));
+  links(); wake();
+}
+function err(e){ $('#conn').className = 'pill bad'; $('#conn').textContent = errText(e); }
+
+/* ---------- przyjmowanie zamówień: numer nadawany transakcją, więc kilka urządzeń nie zdubluje numerów ---------- */
+const processing = new Set();
+function why(o){
+  const b = BAR, item = (b.items || []).find(i => i.id === o.item);
+  if (!b.open) return 'Bar chwilowo nie przyjmuje zamówień.';
+  if (!item || !item.on) return 'Tego drinka chwilowo nie ma. Wybierz inny.';
+  if (b.requireCode && !o.guest) return 'Potrzebny jest kod z identyfikatora.';
+  const lim = +b.limitPerCode || 0;
+  if (o.guest && lim > 0 && ACTIVE.filter(x => x.id !== o.id && x.guest === o.guest && (x.status === 'nowe' || x.status === 'gotowe')).length >= lim)
+    return 'Masz już zamówienie w przygotowaniu. Odbierz je, zanim zamówisz kolejne.';
+  return '';
+}
+async function accept(o, force){
+  if (!BAR || processing.has(o.id)) return;
+  processing.add(o.id);
+  const reason = force ? '' : why(o);
+  const item = (BAR.items || []).find(i => i.id === o.item);
+  const oref = fs.doc(refs.orders, o.id);
+  try {
+    await fs.runTransaction(db, async tx => {
+      const os = await tx.get(oref), cs = await tx.get(refs.counter);
+      if (!os.exists()) return;
+      const st = os.data().status;
+      if (!(st === 'czeka' || (force && st === 'odrzucone'))) return;
+      if (reason) { tx.update(oref, {status:'odrzucone', reason}); return; }
+      const no = ((cs.exists() && cs.data().seq) || 0) + 1;
+      tx.set(refs.counter, {seq: no}, {merge: true});
+      tx.update(oref, {status:'nowe', no, reason:'', itemName: item ? item.name : os.data().itemName,
+        opts: (os.data().opts || []).filter(x => (BAR.options || []).includes(x)), accepted: fs.serverTimestamp()});
+    });
+  } catch(e) { console.warn(e); }
+  setTimeout(() => processing.delete(o.id), 5000);
+}
+
+/* ---------- druk przez system (okno drukowania lub cichy druk w Chrome) ---------- */
+function fontSpec(spec, px){ const [fam, w] = spec.split(':'); return (w || '700') + ' ' + px + 'px "' + fam + '", "Arial Black", Arial, sans-serif'; }
+const K = 12; // punktów na mm na płótnie
+function orderCanvas(o){
+  const W = Math.round(P.w * K), H = Math.round(P.h * K), m = Math.round(3 * K), bw = W - 2 * m;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000'; g.textBaseline = 'top'; g.textAlign = 'center';
+  const line = (t, y, k) => { if (!t) return; let px = Math.round(H * k); g.font = fontSpec(P.font, px); while (px > 8 && g.measureText(t).width > bw) { px -= 2; g.font = fontSpec(P.font, px); } g.fillText(t, W / 2, y); };
+  line('#' + o.no + '  ·  ' + hhmm(ts(o)), H * 0.035, 0.085);
+  line(o.code, H * 0.13, 0.34);
+  line(o.itemName, H * 0.5, 0.12);
+  line((o.opts || []).join(', '), H * 0.64, 0.08);
+  line(o.name, H * 0.74, 0.11);
+  g.fillRect(m, Math.round(H * 0.875), bw, Math.max(2, Math.round(K * 0.25)));
+  line((BAR ? BAR.barName : '') + (o.guest ? '  ·  ' + o.guest : ''), H * 0.9, 0.065);
+  return c;
+}
+const printQ = []; let printing = false;
+function printCanvas(c){ printQ.push(c.toDataURL('image/png')); runPrint(); }
+async function runPrint(){ if (printing) return; printing = true; while (printQ.length) { await printOne(printQ.shift()); await sleep(700); } printing = false; }
+function printOne(url){
+  return new Promise(res => {
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(f);
+    const d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><html><head><style>@page{size:' + P.w + 'mm ' + P.h + 'mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:' + P.w + 'mm;height:' + P.h + 'mm}</style></head><body><img></body></html>');
+    d.close();
+    const img = d.querySelector('img');
+    img.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch(e) {} setTimeout(() => { f.remove(); res(); }, 1000); };
+    img.src = url;
+  });
+}
+const printedHere = new Set();
+async function autoPrint(){
+  if (!P.auto) return;
+  try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e) {}
+  for (const o of ACTIVE) {
+    if (o.status !== 'nowe' || o.printed || printedHere.has(o.id)) continue;
+    printedHere.add(o.id);
+    printCanvas(orderCanvas(o));
+    fs.updateDoc(fs.doc(refs.orders, o.id), {printed: true}).catch(() => {});
+  }
+}
+
+/* ---------- tablica dla ekranu wydawki (publiczna, bez danych wrażliwych) ---------- */
+let boardTimer = null, lastBoard = '';
+function pushBoard(){
+  clearTimeout(boardTimer);
+  boardTimer = setTimeout(async () => {
+    if (!BAR) return;
+    const data = {barName: BAR.barName, open: !!BAR.open,
+      orders: ACTIVE.filter(o => o.status === 'nowe' || o.status === 'gotowe').slice(0, 80).map(o => ({no:o.no || 0, code:o.code, name:o.name || '', itemName:o.itemName || '', status:o.status}))};
+    const sig = JSON.stringify(data);
+    if (sig === lastBoard) return;
+    lastBoard = sig;
+    try { await fs.setDoc(refs.board, Object.assign(data, {updated: fs.serverTimestamp()})); } catch(e) { lastBoard = ''; }
+  }, 700);
+}
+
+/* ---------- widok kolejki ---------- */
+let ac;
+document.addEventListener('pointerdown', () => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch(e){} }, {once:true});
+function ding(){ try { if (!ac) return; [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.setValueAtTime(.15, ac.currentTime + i*.12); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + i*.12 + .25); o.connect(g).connect(ac.destination); o.start(ac.currentTime + i*.12); o.stop(ac.currentTime + i*.12 + .3); }); } catch(e){} }
+function ago(d){ const m = Math.round((Date.now() - d) / 60000); return m < 1 ? 'teraz' : m + ' min temu'; }
+async function setStatus(o, status, msg){ try { await fs.updateDoc(fs.doc(refs.orders, o.id), {status}); if (msg) toast(msg); } catch(e) { toast(errText(e)); } }
+function card(o){
+  const ready = o.status === 'gotowe';
+  const c = h('div', {className:'ord' + (ready ? ' ready' : '')});
+  c.append(h('div', {className:'hd'}, h('span', {className:'code', textContent:o.code}), h('span', {className:'no', textContent:(o.no ? '#' + o.no : '…') + '\n' + hhmm(ts(o))})));
+  c.append(h('div', {className:'drink', textContent:o.itemName}));
+  if (o.opts && o.opts.length) c.append(h('div', {className:'opts', textContent:o.opts.join(', ')}));
+  c.append(h('div', {className:'who', textContent:(o.name || 'bez imienia') + (o.guest ? ' · ' + o.guest : '') + ' · ' + ago(ts(o))}));
+  const a = h('div', {className:'acts'});
+  if (!ready) {
+    a.append(h('button', {className:'primary', textContent:'Gotowe', onclick:() => setStatus(o, 'gotowe', o.code + ' gotowe do odbioru')}));
+    a.append(h('button', {textContent:'Drukuj', onclick:async () => { try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e){} printCanvas(orderCanvas(o)); }}));
+    const cn = h('button', {className:'danger', textContent:'Anuluj'});
+    cn.onclick = () => { if (!cn.classList.contains('armed')) { cn.classList.add('armed'); cn.textContent = 'Na pewno?'; setTimeout(() => { cn.classList.remove('armed'); cn.textContent = 'Anuluj'; }, 3000); return; } setStatus(o, 'anulowane', 'Anulowano ' + o.code); };
+    a.append(cn);
+  } else {
+    a.append(h('button', {className:'primary', textContent:'Wydane', onclick:() => setStatus(o, 'wydane')}));
+    a.append(h('button', {textContent:'Cofnij', onclick:() => setStatus(o, 'nowe')}));
+  }
+  c.append(a);
+  return c;
+}
+function renderQueue(){
+  const nw = ACTIVE.filter(o => o.status === 'nowe'), rd = ACTIVE.filter(o => o.status === 'gotowe');
+  $('#nNew').textContent = nw.length; $('#nReady').textContent = rd.length;
+  $('#qNew').replaceChildren(...(nw.length ? nw.map(card) : [h('div', {className:'empty-col', textContent:'Brak zamówień. Nowe pojawią się tutaj automatycznie.'})]));
+  $('#qReady').replaceChildren(...(rd.length ? rd.map(card) : [h('div', {className:'empty-col', textContent:'Nic nie czeka na odbiór.'})]));
+  const ids = new Set(nw.map(o => o.id));
+  if (lastIds && [...ids].some(id => !lastIds.has(id))) ding();
+  lastIds = ids;
+}
+function renderHist(){
+  const today = new Date().toDateString();
+  const td = HIST.filter(o => ts(o).toDateString() === today);
+  const ok = td.filter(o => !['odrzucone', 'anulowane', 'czeka'].includes(o.status));
+  const hourAgo = Date.now() - 3600e3;
+  const per = {}; ok.forEach(o => per[o.itemName] = (per[o.itemName] || 0) + 1);
+  $('#stats').replaceChildren(
+    h('span', {className:'pill', textContent:'Dziś zamówień: ' + ok.length}),
+    h('span', {className:'pill', textContent:'Ostatnia godzina: ' + ok.filter(o => ts(o) >= hourAgo).length}),
+    h('span', {className:'pill' + (td.some(o => o.status === 'odrzucone') ? ' warn' : ''), textContent:'Odrzucone dziś: ' + td.filter(o => o.status === 'odrzucone').length}),
+    ...Object.entries(per).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([n, c]) => h('span', {className:'pill', textContent:n + ': ' + c})));
+  $('#nRej').textContent = td.filter(o => o.status === 'odrzucone').length;
+  $('#nDone').textContent = td.filter(o => o.status === 'wydane').length;
+  const rows = HIST.filter(o => !ACT.includes(o.status)).slice(0, 120);
+  $('#hist').replaceChildren(...(rows.length ? rows.map(o => {
+    const cell = h('td');
+    if (o.status === 'odrzucone') cell.append(h('button', {textContent:'Przyjmij mimo to', onclick:() => { accept(o, true); toast('Przyjmuję ' + o.code); }}));
+    if (o.status === 'anulowane' || o.status === 'wydane') cell.append(h('button', {textContent:'Przywróć', onclick:() => setStatus(o, 'nowe')}));
+    const st = o.status === 'odrzucone' ? 'odrzucone: ' + (o.reason || '') : o.status;
+    return h('tr', {}, h('td', {className:'mono', textContent:o.code}), h('td', {className:'num', textContent:o.no ? '#' + o.no : '—'}),
+      h('td', {className:'num', textContent:hhmm(ts(o))}), h('td', {textContent:o.itemName}), h('td', {textContent:(o.name || '—') + (o.guest ? ' · ' + o.guest : '')}),
+      h('td', {textContent:st, style:'font-size:12px'}), cell);
+  }) : [h('tr', {}, h('td', {colSpan:7, className:'muted', textContent:'Brak.'}))]));
+}
+$('#csv').onclick = () => {
+  const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const lines = [['Kod','Numer','Data','Drink','Dodatki','Imię','Kod gościa','Status'].join(';')].concat(
+    HIST.map(o => [o.code, o.no || '', ts(o).toLocaleString('pl-PL'), o.itemName, (o.opts || []).join(', '), o.name, o.guest, o.status].map(esc).join(';')));
+  const a = h('a', {href: URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], {type:'text/csv'})), download:'moctail-zamowienia.csv'});
+  document.body.appendChild(a); a.click(); a.remove();
+};
+const rn = $('#resetNo');
+rn.onclick = async () => {
+  if (!rn.classList.contains('armed')) { rn.classList.add('armed'); rn.textContent = 'Na pewno? Kliknij znowu'; setTimeout(() => { rn.classList.remove('armed'); rn.textContent = 'Zacznij numerację od 1'; }, 3500); return; }
+  try { await fs.setDoc(refs.counter, {seq: 0}); toast('Następne zamówienie dostanie numer 1'); } catch(e) { toast(errText(e)); }
+};
+
+/* ---------- bar: ustawienia i menu ---------- */
+function renderBar(){
+  $('#title').textContent = BAR.barName;
+  $('#open').checked = !!BAR.open; $('#openSw').classList.toggle('off', !BAR.open);
+  $('#openTxt').textContent = BAR.open ? 'Przyjmuję zamówienia' : 'Zamówienia wstrzymane';
+  const act = document.activeElement;
+  if (!act || !act.closest('.grid2')) {
+    $('#barName').value = BAR.barName; $('#event').value = BAR.event || ''; $('#options').value = (BAR.options || []).join(', ');
+    $('#limit').value = BAR.limitPerCode; $('#reqCode').checked = !!BAR.requireCode;
+    $('#qrT1').value = BAR.qrText1 ?? ''; $('#qrT2').value = BAR.qrText2 ?? ''; $('#qrT3').value = BAR.qrText3 ?? ''; $('#qrFont').value = BAR.qrFont || FONTS[0][0];
+    if (!menuDirty) renderMenu();
+  }
+  drawStickers();
+}
+function menuRow(it){
+  const r = h('div', {className:'mrow'});
+  const emo = h('input', {className:'emo', value:it.emoji || '🍹', maxLength:4, title:'Emoji'});
+  const nm = h('input', {value:it.name || '', placeholder:'Nazwa drinka', maxLength:30});
+  const ds = h('input', {className:'desc', value:it.desc || '', placeholder:'Składniki', maxLength:70});
+  const on = h('input', {type:'checkbox', checked:it.on !== false});
+  const del = h('button', {className:'danger', textContent:'×', title:'Usuń z menu', onclick:() => { r.remove(); menuDirty = true; }});
+  [emo, nm, ds].forEach(i => i.oninput = () => menuDirty = true);
+  on.onchange = () => saveMenu(true);
+  r.dataset.id = it.id || '';
+  r.append(emo, nm, ds, h('label', {className:'check', title:'Dostępny'}, on, 'jest'), del);
+  r.get = () => ({id:r.dataset.id, emoji:emo.value.trim() || '🍹', name:nm.value.trim().slice(0, 30), desc:ds.value.trim().slice(0, 70), on:on.checked});
+  return r;
+}
+function renderMenu(){ $('#menu').replaceChildren(...(BAR.items || []).map(menuRow)); menuDirty = false; }
+function slug(n, taken){ let s = n.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'drink'; let b = s, i = 2; while (taken.has(s)) s = b + '-' + i++; return s; }
+async function saveMenu(quiet){
+  const taken = new Set();
+  const items = [...$('#menu').children].map(r => r.get()).filter(i => i.name).map(i => { if (!i.id || taken.has(i.id)) i.id = slug(i.name, taken); taken.add(i.id); return i; });
+  if (!items.length) return toast('Menu musi mieć przynajmniej jedną pozycję.');
+  try { menuDirty = false; await fs.updateDoc(refs.bar, {items}); toast(quiet ? 'Zmieniono dostępność' : 'Zapisano menu'); } catch(e) { toast(errText(e)); }
+}
+$('#addItem').onclick = () => { const r = menuRow({name:'', desc:'', emoji:'🍹', on:true}); $('#menu').append(r); r.children[1].focus(); menuDirty = true; };
+$('#saveMenu').onclick = () => saveMenu(false);
+$('#saveSet').onclick = async () => {
+  try {
+    await fs.updateDoc(refs.bar, {barName:$('#barName').value.trim().slice(0, 40) || 'Moctail bar', event:$('#event').value.trim().slice(0, 40),
+      limitPerCode: Math.max(0, Math.min(20, parseInt($('#limit').value || 0, 10))), requireCode:$('#reqCode').checked,
+      options:$('#options').value.split(',').map(x => x.trim()).filter(Boolean).slice(0, 12)});
+    toast('Zapisano ustawienia');
+  } catch(e) { toast(errText(e)); }
+};
+$('#open').onchange = async ev => { try { await fs.updateDoc(refs.bar, {open: ev.target.checked}); toast(ev.target.checked ? 'Bar przyjmuje zamówienia' : 'Zamówienia wstrzymane'); } catch(e) { toast(errText(e)); } };
+$('#test').onclick = async () => {
+  const on = (BAR.items || []).filter(i => i.on); if (!on.length) return toast('Brak dostępnych drinków w menu.');
+  const it = on[Math.floor(Math.random() * on.length)], A = 'ACEFHJKLMNPRTUVWXY3479', code = [0,0,0].map(() => A[Math.floor(Math.random() * A.length)]).join('');
+  try {
+    await fs.addDoc(refs.orders, {code, item:it.id, itemName:it.name, opts:(BAR.options || []).slice(0, 1), name:['Anna','Piotr','Kasia','Marek','Ola'][Math.floor(Math.random() * 5)], guest:'', status:'czeka', created: fs.serverTimestamp()});
+    toast('Wysłano testowe zamówienie ' + code + ', zaraz pojawi się w kolejce');
+  } catch(e) { toast(errText(e)); }
+};
+
+/* ---------- linki, kody QR, naklejka z kodem ---------- */
+const guestUrl = () => new URL('../', location.href).href + '?b=' + UID;
+const screenUrl = () => new URL('../ekran/', location.href).href + '?b=' + UID;
+function qrTo(cv, url, s){
+  if (!window.qrcode) return;
+  const q = qrcode(0, 'M'); q.addData(url); q.make();
+  const n = q.getModuleCount(); cv.width = cv.height = n * s;
+  const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, n*s, n*s); g.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(c*s, r*s, s, s);
+}
+function links(){
+  $('#guestLink').value = guestUrl(); $('#screenLink').value = screenUrl();
+  $('#navMenu').href = guestUrl(); $('#navScreen').href = screenUrl();
+  qrTo($('#qr'), guestUrl(), 5); qrTo($('#qrScreen'), screenUrl(), 4);
+  const panel = location.href.split('?')[0];
+  $('#cmdWin').textContent = '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing "' + panel + '"';
+  $('#cmdMac').textContent = 'open -na "Google Chrome" --args --kiosk-printing "' + panel + '"';
+}
+function copy(v, ok){ try { navigator.clipboard.writeText(v).then(() => toast(ok), () => toast('Zaznacz i skopiuj ręcznie')); } catch(e) { toast('Zaznacz i skopiuj ręcznie'); } }
+$('#copyLink').onclick = () => copy(guestUrl(), 'Skopiowano link dla gości');
+$('#copyScreen').onclick = () => copy(screenUrl(), 'Skopiowano link do ekranu');
+function stickerCanvas(){
+  const W = Math.round(P.w * K), H = Math.round(P.h * K);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000';
+  const q = qrcode(0, 'M'); q.addData(UID ? guestUrl() : 'https://example.com'); q.make();
+  const n = q.getModuleCount(), mag = Math.max(2, Math.floor(Math.min(W * 0.46, H * 0.86) / n));
+  const qs = n * mag, qx = W - Math.round(3 * K) - qs, qy = Math.round((H - qs) / 2);
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) g.fillRect(qx + k*mag, qy + r*mag, mag, mag);
+  const tw = qx - Math.round(6 * K), x = Math.round(3 * K), font = $('#qrFont').value;
+  const lines = [[$('#qrT1').value, 0.30], [$('#qrT2').value, 0.30], [$('#qrT3').value, 0.10]].filter(l => l[0].trim());
+  const sized = lines.map(([t, k]) => { let px = Math.round(H * k); g.font = fontSpec(font, px); while (px > 8 && g.measureText(t).width > tw) { px -= 2; g.font = fontSpec(font, px); } return {t, px}; });
+  const gap = H * 0.04, total = sized.reduce((a, l) => a + l.px * 1.12, 0) + gap * Math.max(0, sized.length - 1);
+  let y = Math.max(8, (H - total) / 2); g.textBaseline = 'top';
+  sized.forEach(l => { g.font = fontSpec(font, l.px); g.fillText(l.t, x, y); y += l.px * 1.12 + gap; });
+  return c;
+}
+function drawStickers(){
+  if (!window.qrcode || !UID) return;
+  const c = stickerCanvas(), p = $('#qrPrev'); p.width = c.width; p.height = c.height; p.getContext('2d').drawImage(c, 0, 0);
+  p.style.width = Math.min(360, c.width / 3) + 'px';
+}
+['#qrT1', '#qrT2', '#qrT3', '#qrFont'].forEach(id => $(id).addEventListener('input', drawStickers));
+let qrSave = null;
+['#qrT1', '#qrT2', '#qrT3', '#qrFont'].forEach(id => $(id).addEventListener('change', () => { clearTimeout(qrSave); qrSave = setTimeout(() => fs.updateDoc(refs.bar, {qrText1:$('#qrT1').value, qrText2:$('#qrT2').value, qrText3:$('#qrT3').value, qrFont:$('#qrFont').value}).catch(() => {}), 500); }));
+if (document.fonts) { document.fonts.ready.then(drawStickers); FONTS.forEach(([f]) => document.fonts.load(fontSpec(f, 40)).then(drawStickers).catch(() => {})); }
+$('#printQr').onclick = async () => { try { await document.fonts.load(fontSpec($('#qrFont').value, 40)); } catch(e) {} printCanvas(stickerCanvas()); };
+
+/* ---------- ustawienia drukarki tego urządzenia ---------- */
+function fillP(){ $('#pAuto').checked = P.auto; $('#pW').value = P.w; $('#pH').value = P.h; $('#pFont').value = P.font; prnPill(); }
+function prnPill(){ const el = $('#prn'); el.className = 'pill' + (P.auto ? ' ok' : ''); el.textContent = P.auto ? 'To urządzenie drukuje naklejki' : 'Druk na tym urządzeniu wyłączony'; }
+function readP(){ P.w = Math.max(20, Math.min(120, +$('#pW').value || 100)); P.h = Math.max(15, Math.min(200, +$('#pH').value || 50)); P.font = $('#pFont').value; saveP(); prnPill(); drawStickers(); }
+$('#pSave').onclick = () => { readP(); toast('Zapisano ustawienia drukarki na tym urządzeniu'); };
+$('#pAuto').onchange = () => { P.auto = $('#pAuto').checked; saveP(); prnPill(); if (P.auto) autoPrint(); toast(P.auto ? 'To urządzenie będzie drukować naklejki' : 'Druk wyłączony na tym urządzeniu'); };
+$('#pTest').onclick = async () => { readP(); try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e) {} printCanvas(orderCanvas({no:17, code:'K7P', itemName:'Virgin Mojito', opts:['bez lodu'], name:'Anna', guest:''})); };
+fillP();
+
+/* ekran nie gaśnie, gdy panel jest otwarty */
+async function wake(){ try { if (navigator.wakeLock && !document.hidden) await navigator.wakeLock.request('screen'); } catch(e) {} }
+document.addEventListener('visibilitychange', wake);
+</script>
+</body>
+</html>
