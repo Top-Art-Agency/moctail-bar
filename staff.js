@@ -1,6 +1,6 @@
-// Widok obsługi: logowanie, zamówienia, ekran wydawki, menu, kod QR, drukarka
+// Widok obsługi: logowanie, zamówienia, ekran wydawki, menu, kod QR, raport
 import { db, auth, fs, au, errText } from './fb.js';
-const MARKUP = "<nav class=\"top\"><b>Moctail bar</b>\n  <span id=\"tabs\" hidden style=\"display:contents\">\n    <a href=\"#\" data-tab=\"zam\">Zamówienia</a><a href=\"#\" data-tab=\"ekran\">Ekran wydawki</a><a href=\"#\" data-tab=\"menu\">Menu</a><a href=\"#\" data-tab=\"qr\">Kod QR</a><a href=\"#\" data-tab=\"druk\">Drukarka</a>\n  </span>\n  <span class=\"right\"><a href=\"./?gosc\" target=\"_blank\">Podgląd menu</a><span class=\"muted\" id=\"who\"></span><a href=\"#\" id=\"logout\" hidden>Wyloguj</a></span></nav>\n\n<form class=\"gate card\" id=\"vLogin\" hidden autocomplete=\"on\">\n  <h1>Obsługa baru</h1>\n  <p class=\"muted\" style=\"margin:0\">Zaloguj się kontem obsługi (zakładasz je w Firebase Console → Authentication → Users).</p>\n  <label class=\"f\">E-mail<input id=\"lEmail\" type=\"email\" autocomplete=\"username\" required></label>\n  <label class=\"f\">Hasło<input id=\"lPass\" type=\"password\" autocomplete=\"current-password\" required></label>\n  <p class=\"err danger\" id=\"lErr\" style=\"margin:0;min-height:1em\"></p>\n  <button class=\"primary\" type=\"submit\" id=\"lGo\">Zaloguj</button>\n  <a href=\"./\" class=\"muted\" style=\"font-size:13px\">← Wróć do menu dla gości</a>\n</form>\n\n<div id=\"vApp\" hidden>\n  <div class=\"wrap stack\" data-pane=\"zam\">\n    <div class=\"top\">\n      <div>\n        <h1 id=\"title\">Moctail bar</h1>\n        <div class=\"inline\"><span class=\"pill\" id=\"conn\">Łączę…</span><span class=\"pill\" id=\"prn\"></span></div>\n      </div>\n      <div class=\"inline\">\n        <label class=\"switch\" id=\"openSw\"><input type=\"checkbox\" id=\"open\"> <span id=\"openTxt\">Przyjmuję zamówienia</span></label>\n        <button id=\"test\">Testowe zamówienie</button>\n      </div>\n    </div>\n    <section class=\"queue\">\n      <div class=\"col\"><h2>Do zrobienia <b id=\"nNew\">0</b></h2><div class=\"orders\" id=\"qNew\"></div></div>\n      <div class=\"col\"><h2>Gotowe do odbioru <b id=\"nReady\">0</b></h2><div class=\"orders\" id=\"qReady\"></div></div>\n    </section>\n    <div class=\"stat\" id=\"stats\"></div>\n    <section class=\"card\">\n      <details>\n        <summary>Historia: odrzucone <b id=\"nRej\">0</b> · wydane dziś <b id=\"nDone\">0</b></summary>\n        <div class=\"tablewrap\" style=\"margin-top:10px\"><table>\n          <thead><tr><th>Kod</th><th>Nr</th><th>Godz.</th><th>Drink</th><th>Gość</th><th>Status</th><th></th></tr></thead>\n          <tbody id=\"hist\"></tbody>\n        </table></div>\n        <div class=\"inline\" style=\"margin-top:10px\"><button id=\"csv\">Pobierz historię (CSV)</button><button class=\"danger\" id=\"resetNo\">Zacznij numerację od 1</button></div>\n      </details>\n    </section>\n  </div>\n\n  <section class=\"screen\" data-pane=\"ekran\" id=\"paneEkran\" hidden>\n    <header><h1 id=\"scrBar\">Moctail bar</h1><span class=\"inline\"><span class=\"clock\" id=\"scrClock\"></span><button id=\"scrFull\">Pełny ekran</button></span></header>\n    <main><section><h2>Gotowe do odbioru</h2><div class=\"ready\" id=\"scrReady\"></div></section><section><h2>W przygotowaniu</h2><div class=\"prep\" id=\"scrPrep\"></div></section></main>\n    <footer id=\"scrFoot\"></footer>\n  </section>\n\n  <div class=\"wrap stack\" data-pane=\"menu\" hidden>\n    <section class=\"card stack\" style=\"gap:12px\">\n      <h2 style=\"margin:0\">Menu</h2>\n      <p class=\"muted\" style=\"margin:0;font-size:13px\">Zmiany widać na telefonach gości po odświeżeniu strony (same odświeżają co kilka minut). Odznacz drink, gdy skończy się składnik.</p>\n      <div class=\"mlist\" id=\"menu\"></div>\n      <div class=\"inline\"><button id=\"addItem\">+ Dodaj drink</button><button class=\"primary\" id=\"saveMenu\">Zapisz menu</button></div>\n      <label class=\"f\">Dodatki do wyboru (oddziel przecinkami)<input id=\"options\" placeholder=\"bez lodu, mniej słodki\"></label>\n      <div class=\"row\">\n        <label class=\"f\">Nazwa baru<input id=\"barName\" maxlength=\"40\"></label>\n        <label class=\"f\">Podtytuł (np. nazwa wydarzenia)<input id=\"event\" maxlength=\"40\"></label>\n      </div>\n      <div class=\"row\">\n        <label class=\"f\">Zamówień w przygotowaniu na jeden kod (0 = bez limitu)<input id=\"limit\" type=\"number\" min=\"0\" max=\"20\"></label>\n        <label class=\"check\" style=\"align-self:end;padding-bottom:8px\"><input type=\"checkbox\" id=\"reqCode\"> Wymagaj kodu z identyfikatora</label>\n      </div>\n      <div><button class=\"primary\" id=\"saveSet\">Zapisz ustawienia</button></div>\n    </section>\n  </div>\n\n  <div class=\"wrap stack\" data-pane=\"qr\" hidden>\n    <section class=\"card stack\" style=\"gap:12px;max-width:720px\">\n      <h2 style=\"margin:0\">Kod QR dla gości</h2>\n      <p class=\"warnbox\" id=\"cfgWarn\" hidden style=\"margin:0\">Goście widzą menu innego konta baru. Ta strona obsługuje jeden bar; zaloguj się kontem, które uruchomiło ją jako pierwsze.</p>\n      <label class=\"f\">Adres menu (kod QR prowadzi tutaj)\n        <span class=\"row\" style=\"grid-template-columns:minmax(0,1fr) auto\"><input id=\"guestLink\" readonly class=\"mono\" style=\"font-size:12px\"><button id=\"copyLink\">Kopiuj</button></span></label>\n      <span class=\"muted\" style=\"font-size:12px\">Tekst na naklejce obok kodu (puste pole = bez tej linii)</span>\n      <input id=\"qrT1\" maxlength=\"40\" placeholder=\"Duży napis, linia 1\">\n      <input id=\"qrT2\" maxlength=\"40\" placeholder=\"Duży napis, linia 2\">\n      <input id=\"qrT3\" maxlength=\"40\" placeholder=\"Mały dopisek na dole\">\n      <label class=\"f\">Czcionka<select id=\"qrFont\"></select></label>\n      <span class=\"muted\" style=\"font-size:12px\">Podgląd naklejki:</span>\n      <canvas id=\"qrPrev\" style=\"background:#fff;border:1px solid var(--line);border-radius:6px;max-width:100%;height:auto\"></canvas>\n      <div class=\"qrbox\"><canvas id=\"qr\" width=\"10\" height=\"10\"></canvas>\n        <span class=\"stack\" style=\"gap:8px\"><button class=\"primary\" id=\"printQr\">Drukuj naklejkę z kodem</button><span class=\"muted\" style=\"font-size:12px\">Do plakatu: zrzut ekranu kodu obok.</span></span></div>\n      <p class=\"muted\" style=\"margin:0;font-size:12px\">Adres z dopiskiem <span class=\"mono\">?kod=GUEST-0142&amp;imie=Anna</span> wypełni gościowi pola automatycznie.</p>\n    </section>\n  </div>\n\n  <div class=\"wrap stack\" data-pane=\"druk\" hidden>\n    <section class=\"card stack\" style=\"gap:12px;max-width:820px\">\n      <h2 style=\"margin:0\">Drukarka na tym urządzeniu</h2>\n      <label class=\"check\"><input type=\"checkbox\" id=\"pAuto\"> To urządzenie drukuje naklejkę przy każdym nowym zamówieniu</label>\n      <p class=\"warnbox\" style=\"margin:0\">Włącz to tylko na jednym urządzeniu, do którego jest podłączona drukarka. Inaczej naklejki wydrukują się podwójnie.</p>\n      <div class=\"row\">\n        <label class=\"f\">Szerokość etykiety (mm)<input id=\"pW\" type=\"number\" min=\"20\" max=\"120\"></label>\n        <label class=\"f\">Wysokość etykiety (mm)<input id=\"pH\" type=\"number\" min=\"15\" max=\"200\"></label>\n        <label class=\"f\">Czcionka naklejki<select id=\"pFont\"></select></label>\n      </div>\n      <div class=\"inline\"><button class=\"primary\" id=\"pSave\">Zapisz</button><button id=\"pTest\">Wydrukuj testową naklejkę</button></div>\n      <details>\n        <summary>Jak drukować bez okienka „Drukuj” (zalecane)</summary>\n        <div class=\"stack\" style=\"gap:8px;margin-top:8px;font-size:13px\">\n          <span>1. Zainstaluj drukarkę etykiet w systemie (sterownik producenta) i ustaw ją jako <b>drukarkę domyślną</b>. W jej preferencjach ustaw rozmiar papieru taki jak wyżej.</span>\n          <span>2. Zamknij całkowicie Chrome i uruchom go z opcją cichego drukowania:</span>\n          <b>Windows</b> (skrót na pulpicie → Właściwości → Element docelowy):\n          <div class=\"code-box\" id=\"cmdWin\"></div>\n          <b>macOS</b> (Terminal):\n          <div class=\"code-box\" id=\"cmdMac\"></div>\n          <span>Bez tego Chrome przy każdej naklejce pokaże okno drukowania. Wtedy kliknij „Drukuj”; zamówienia i tak działają.</span>\n        </div>\n      </details>\n    </section>\n  </div>\n</div>\n<div class=\"toast\" id=\"toast\" hidden></div>";
+const MARKUP = "<nav class=\"top\"><b>Moctail bar</b>\n  <span id=\"tabs\" hidden style=\"display:contents\">\n    <a href=\"#\" data-tab=\"zam\">Zamówienia</a><a href=\"#\" data-tab=\"ekran\">Ekran wydawki</a><a href=\"#\" data-tab=\"menu\">Menu</a><a href=\"#\" data-tab=\"qr\">Kod QR</a><a href=\"#\" data-tab=\"raport\">Raport</a>\n  </span>\n  <span class=\"right\"><a href=\"./?gosc\" target=\"_blank\">Podgląd menu</a><span class=\"muted\" id=\"who\"></span><a href=\"#\" id=\"logout\" hidden>Wyloguj</a></span></nav>\n\n<form class=\"gate card\" id=\"vLogin\" hidden autocomplete=\"on\">\n  <h1>Obsługa baru</h1>\n  <p class=\"muted\" style=\"margin:0\">Zaloguj się kontem obsługi (zakładasz je w Firebase Console → Authentication → Users).</p>\n  <label class=\"f\">E-mail<input id=\"lEmail\" type=\"email\" autocomplete=\"username\" required></label>\n  <label class=\"f\">Hasło<input id=\"lPass\" type=\"password\" autocomplete=\"current-password\" required></label>\n  <p class=\"err danger\" id=\"lErr\" style=\"margin:0;min-height:1em\"></p>\n  <button class=\"primary\" type=\"submit\" id=\"lGo\">Zaloguj</button>\n  <a href=\"./\" class=\"muted\" style=\"font-size:13px\">← Wróć do menu dla gości</a>\n</form>\n\n<div id=\"vApp\" hidden>\n  <div class=\"wrap stack\" data-pane=\"zam\">\n    <div class=\"top\">\n      <div>\n        <h1 id=\"title\">Moctail bar</h1>\n        <div class=\"inline\"><span class=\"pill\" id=\"conn\">Łączę…</span><span class=\"pill\" id=\"prn\" hidden></span></div>\n      </div>\n      <div class=\"inline\">\n        <label class=\"switch\" id=\"openSw\"><input type=\"checkbox\" id=\"open\"> <span id=\"openTxt\">Przyjmuję zamówienia</span></label>\n        <button id=\"test\">Testowe zamówienie</button>\n      </div>\n    </div>\n    <section class=\"queue\">\n      <div class=\"col\"><h2>Do zrobienia <b id=\"nNew\">0</b></h2><div class=\"orders\" id=\"qNew\"></div></div>\n      <div class=\"col\"><h2>Gotowe do odbioru <b id=\"nReady\">0</b></h2><div class=\"orders\" id=\"qReady\"></div></div>\n    </section>\n    <div class=\"stat\" id=\"stats\"></div>\n    <section class=\"card\">\n      <details>\n        <summary>Historia: odrzucone <b id=\"nRej\">0</b> · wydane dziś <b id=\"nDone\">0</b></summary>\n        <div class=\"tablewrap\" style=\"margin-top:10px\"><table>\n          <thead><tr><th>Kod</th><th>Nr</th><th>Godz.</th><th>Drink</th><th>Gość</th><th>Status</th><th></th></tr></thead>\n          <tbody id=\"hist\"></tbody>\n        </table></div>\n        <div class=\"inline\" style=\"margin-top:10px\"><button id=\"csv\">Pobierz historię (CSV)</button><button class=\"danger\" id=\"resetNo\">Zacznij numerację od 1</button></div>\n      </details>\n    </section>\n  </div>\n\n  <section class=\"screen\" data-pane=\"ekran\" id=\"paneEkran\" hidden>\n    <header><h1 id=\"scrBar\">Moctail bar</h1><span class=\"inline\"><span class=\"clock\" id=\"scrClock\"></span><button id=\"scrFull\">Pełny ekran</button></span></header>\n    <main><section><h2>Gotowe do odbioru</h2><div class=\"ready\" id=\"scrReady\"></div></section><section><h2>W przygotowaniu</h2><div class=\"prep\" id=\"scrPrep\"></div></section></main>\n    <footer id=\"scrFoot\"></footer>\n  </section>\n\n  <div class=\"wrap stack\" data-pane=\"menu\" hidden>\n    <section class=\"card stack\" style=\"gap:12px\">\n      <h2 style=\"margin:0\">Menu</h2>\n      <p class=\"muted\" style=\"margin:0;font-size:13px\">Zmiany widać na telefonach gości po odświeżeniu strony (same odświeżają co kilka minut). Odznacz drink, gdy skończy się składnik.</p>\n      <div class=\"mlist\" id=\"menu\"></div>\n      <div class=\"inline\"><button id=\"addItem\">+ Dodaj drink</button><button class=\"primary\" id=\"saveMenu\">Zapisz menu</button></div>\n      <label class=\"f\">Dodatki do wyboru (oddziel przecinkami)<input id=\"options\" placeholder=\"bez lodu, mniej słodki\"></label>\n      <div class=\"row\">\n        <label class=\"f\">Nazwa baru<input id=\"barName\" maxlength=\"40\"></label>\n        <label class=\"f\">Podtytuł (np. nazwa wydarzenia)<input id=\"event\" maxlength=\"40\"></label>\n      </div>\n      <div class=\"row\">\n        <label class=\"f\">Zamówień w przygotowaniu na jeden kod (0 = bez limitu)<input id=\"limit\" type=\"number\" min=\"0\" max=\"20\"></label>\n        <label class=\"check\" style=\"align-self:end;padding-bottom:8px\"><input type=\"checkbox\" id=\"reqCode\"> Wymagaj kodu z identyfikatora</label>\n      </div>\n      <div><button class=\"primary\" id=\"saveSet\">Zapisz ustawienia</button></div>\n    </section>\n  </div>\n\n  <div class=\"wrap stack\" data-pane=\"qr\" hidden>\n    <section class=\"card stack\" style=\"gap:12px;max-width:720px\">\n      <h2 style=\"margin:0\">Kod QR dla gości</h2>\n      <p class=\"warnbox\" id=\"cfgWarn\" hidden style=\"margin:0\">Goście widzą menu innego konta baru. Ta strona obsługuje jeden bar; zaloguj się kontem, które uruchomiło ją jako pierwsze.</p>\n      <label class=\"f\">Adres menu (kod QR prowadzi tutaj)\n        <span class=\"row\" style=\"grid-template-columns:minmax(0,1fr) auto\"><input id=\"guestLink\" readonly class=\"mono\" style=\"font-size:12px\"><button id=\"copyLink\">Kopiuj</button></span></label>\n      <span class=\"muted\" style=\"font-size:12px\">Napis obok kodu na grafice (puste pole = bez tej linii)</span>\n      <input id=\"qrT1\" maxlength=\"40\" placeholder=\"Duży napis, linia 1\">\n      <input id=\"qrT2\" maxlength=\"40\" placeholder=\"Duży napis, linia 2\">\n      <input id=\"qrT3\" maxlength=\"40\" placeholder=\"Mały dopisek na dole\">\n      <label class=\"f\">Czcionka<select id=\"qrFont\"></select></label>\n      <span class=\"muted\" style=\"font-size:12px\">Podgląd grafiki na stolik:</span>\n      <canvas id=\"qrPrev\" style=\"background:#fff;border:1px solid var(--line);border-radius:6px;max-width:100%;height:auto\"></canvas>\n      <div class=\"qrbox\"><canvas id=\"qr\" width=\"10\" height=\"10\"></canvas>\n        <span class=\"stack\" style=\"gap:8px\"><button class=\"primary\" id=\"dlCard\">Pobierz grafikę z napisem (PNG)</button><button id=\"dlQr\">Pobierz sam kod QR (PNG)</button><span class=\"muted\" style=\"font-size:12px\">Wydrukuj na zwykłej drukarce albo wstaw na plakat.</span></span></div>\n      <p class=\"muted\" style=\"margin:0;font-size:12px\">Adres z dopiskiem <span class=\"mono\">?kod=GUEST-0142&amp;imie=Anna</span> wypełni gościowi pola automatycznie.</p>\n    </section>\n  </div>\n\n  <div class=\"wrap stack\" data-pane=\"raport\" hidden>\n    <section class=\"card stack rep-ctl\" style=\"gap:12px\">\n      <h2 style=\"margin:0\">Raport z zamówień</h2>\n      <div class=\"inline\" style=\"gap:8px;align-items:end\">\n        <label class=\"f\">Okres<select id=\"repRange\"><option value=\"today\">Dziś</option><option value=\"yday\">Wczoraj</option><option value=\"7\">Ostatnie 7 dni</option><option value=\"30\">Ostatnie 30 dni</option><option value=\"custom\">Własny zakres</option></select></label>\n        <label class=\"f\" id=\"repFromL\" hidden>Od<input type=\"date\" id=\"repFrom\"></label>\n        <label class=\"f\" id=\"repToL\" hidden>Do<input type=\"date\" id=\"repTo\"></label>\n        <button class=\"primary\" id=\"repGo\">Pokaż raport</button>\n        <button id=\"repPrint\" disabled>Zapisz jako PDF / drukuj</button>\n        <button id=\"repCsv\" disabled>Pobierz dane (CSV)</button>\n      </div>\n      <p class=\"muted\" style=\"margin:0;font-size:12px\">Raport pobiera zamówienia z bazy jednorazowo, po kliknięciu „Pokaż raport”. Liczone są zamówienia przyjęte (anulowane i odrzucone są podane osobno). PDF: w oknie drukowania wybierz „Zapisz jako PDF”.</p>\n    </section>\n    <div id=\"rep\" class=\"stack\"></div>\n  </div>\n\n</div>\n<div class=\"toast\" id=\"toast\" hidden></div>";
 export function mount(root){
   root.innerHTML = MARKUP;
   const $ = s => document.querySelector(s);
@@ -9,7 +9,7 @@ export function mount(root){
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const FONTS = [['Unbounded:800','Unbounded: nowoczesna, okrągła'],['Bebas Neue:400','Bebas Neue: wysoka, plakatowa'],['Pacifico:400','Pacifico: odręczna'],
     ['Playfair Display:italic 800','Playfair: elegancka kursywa'],['Fredoka:700','Fredoka: zaokrąglona'],['Archivo Narrow:700','Archivo Narrow: prosta, wąska']];
-  ['#qrFont', '#pFont'].forEach(id => $(id).replaceChildren(...FONTS.map(([v, t]) => h('option', {value:v, textContent:t}))));
+  ['#qrFont'].forEach(id => $(id).replaceChildren(...FONTS.map(([v, t]) => h('option', {value:v, textContent:t}))));
 
   const DEFAULT_BAR = {
     barName: 'Moctail bar 0%', event: '', open: true, requireCode: false, limitPerCode: 1,
@@ -24,7 +24,11 @@ export function mount(root){
       {id:'lemoniada-lawenda', name:'Lemoniada lawendowa', desc:'cytryna, syrop lawendowy, woda gazowana', emoji:'💜', on:true}]};
 
   /* ustawienia drukarki trzymamy osobno na każdym urządzeniu */
-  const P = Object.assign({auto:false, w:100, h:50, font:'Archivo Narrow:700'}, (() => { try { return JSON.parse(localStorage.getItem('moctail-print')) || {}; } catch(e) { return {}; } })());
+  const P = Object.assign({auto:false, w:100, h:50, font:'Archivo Narrow:700', method:'bridge', ip:'', bridge:''}, (() => { try { return JSON.parse(localStorage.getItem('moctail-print')) || {}; } catch(e) { return {}; } })());
+  // Safari blokuje http://localhost ze strony https, więc tam używamy bezpiecznego portu programu (8443)
+  const IS_SAFARI = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+  const DEF_BRIDGE = IS_SAFARI ? 'https://localhost:8443' : 'http://localhost:8080';
+  if (!P.bridge || (IS_SAFARI && /^http:\/\/(localhost|127\.0\.0\.1)/.test(P.bridge))) P.bridge = DEF_BRIDGE;
   const saveP = () => { try { localStorage.setItem('moctail-print', JSON.stringify(P)); } catch(e) {} };
 
   let UID = null, BAR = null, ACTIVE = [], HIST = [], menuDirty = false, unsubs = [], lastIds = null;
@@ -134,7 +138,36 @@ export function mount(root){
     return c;
   }
   const printQ = []; let printing = false;
-  function printCanvas(c){ printQ.push(c.toDataURL('image/png')); runPrint(); }
+  function printCanvas(c){ if (P.method === 'bridge') return bridgePrint(c); printQ.push(c.toDataURL('image/png')); runPrint(); }
+  /* druk przez serwer-etykiet.py: naklejka jako obraz ZPL (203 dpi = 8 punktów/mm) wysłana na adres IP drukarki */
+  function toZpl(src){
+    const W = Math.round(P.w * 8), H = Math.round(P.h * 8);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(src, 0, 0, W, H);
+    const px = g.getImageData(0, 0, W, H).data, bpr = Math.ceil(W / 8), hex = [];
+    for (let y = 0; y < H; y++) for (let b = 0; b < bpr; b++) {
+      let v = 0;
+      for (let i = 0; i < 8; i++) { const x = b * 8 + i; if (x < W) { const j = (y * W + x) * 4; if (px[j] + px[j+1] + px[j+2] < 384) v |= 128 >> i; } }
+      hex.push((v < 16 ? '0' : '') + v.toString(16).toUpperCase());
+    }
+    return ['^XA', '^PW' + W, '^LL' + H, '^LH0,0', '^FO0,0^GFA,' + bpr*H + ',' + bpr*H + ',' + bpr + ',' + hex.join(''), '^FS', '^PQ1', '^XZ'].join('\n');
+  }
+  const bridgeQ = []; let bridging = false;
+  function bridgePrint(c){ bridgeQ.push(toZpl(c)); runBridge(); }
+  async function runBridge(){
+    if (bridging) return; bridging = true;
+    while (bridgeQ.length) {
+      const zpl = bridgeQ.shift();
+      try {
+        const r = await fetch((P.bridge || DEF_BRIDGE).replace(/\/$/, '') + '/print', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({zpl, mode:'wifi', ip:P.ip})});
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) throw new Error(j.error || 'Drukarka odrzuciła wydruk.');
+      } catch(e) {
+        toast(e instanceof TypeError ? (IS_SAFARI ? 'Safari nie łączy się z programem. Kliknij „Otwórz adres programu” w zakładce Drukarka i zaakceptuj certyfikat.' : 'Nie widzę programu serwer-etykiet.py. Uruchom go na tym komputerze.') : e.message);
+      }
+    }
+    bridging = false;
+  }
   async function runPrint(){ if (printing) return; printing = true; while (printQ.length) { await printOne(printQ.shift()); await sleep(700); } printing = false; }
   function printOne(url){
     return new Promise(res => {
@@ -152,6 +185,7 @@ export function mount(root){
   }
   const printedHere = new Set();
   async function autoPrint(){
+    return; // wersja bez drukowania
     if (!P.auto) return;
     try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e) {}
     for (const o of ACTIVE) {
@@ -180,7 +214,13 @@ export function mount(root){
   document.addEventListener('pointerdown', () => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch(e){} }, {once:true});
   function ding(){ try { if (!ac) return; [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.setValueAtTime(.15, ac.currentTime + i*.12); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + i*.12 + .25); o.connect(g).connect(ac.destination); o.start(ac.currentTime + i*.12); o.stop(ac.currentTime + i*.12 + .3); }); } catch(e){} }
   function ago(d){ const m = Math.round((Date.now() - d) / 60000); return m < 1 ? 'teraz' : m + ' min temu'; }
-  async function setStatus(o, status, msg){ try { await fs.updateDoc(fs.doc(refs.orders, o.id), {status}); if (msg) toast(msg); } catch(e) { toast(errText(e)); } }
+  async function setStatus(o, status, msg){
+    const upd = {status};
+    if (status === 'gotowe') upd.readyAt = fs.serverTimestamp();
+    if (status === 'wydane') upd.doneAt = fs.serverTimestamp();
+    if (status === 'nowe') upd.readyAt = null;
+    try { await fs.updateDoc(fs.doc(refs.orders, o.id), upd); if (msg) toast(msg); } catch(e) { toast(errText(e)); }
+  }
   function card(o){
     const ready = o.status === 'gotowe';
     const c = h('div', {className:'ord' + (ready ? ' ready' : '')});
@@ -191,8 +231,7 @@ export function mount(root){
     const a = h('div', {className:'acts'});
     if (!ready) {
       a.append(h('button', {className:'primary', textContent:'Gotowe', onclick:() => setStatus(o, 'gotowe', o.code + ' gotowe do odbioru')}));
-      a.append(h('button', {textContent:'Drukuj', onclick:async () => { try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e){} printCanvas(orderCanvas(o)); }}));
-      const cn = h('button', {className:'danger', textContent:'Anuluj'});
+        const cn = h('button', {className:'danger', textContent:'Anuluj'});
       cn.onclick = () => { if (!cn.classList.contains('armed')) { cn.classList.add('armed'); cn.textContent = 'Na pewno?'; setTimeout(() => { cn.classList.remove('armed'); cn.textContent = 'Anuluj'; }, 3000); return; } setStatus(o, 'anulowane', 'Anulowano ' + o.code); };
       a.append(cn);
     } else {
@@ -316,14 +355,11 @@ export function mount(root){
   function links(){
     $('#guestLink').value = guestUrl();
     qrTo($('#qr'), guestUrl(), 5);
-    const panel = location.origin + location.pathname + '#obsluga';
-    $('#cmdWin').textContent = '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing "' + panel + '"';
-    $('#cmdMac').textContent = 'open -na "Google Chrome" --args --kiosk-printing "' + panel + '"';
   }
   function copy(v, ok){ try { navigator.clipboard.writeText(v).then(() => toast(ok), () => toast('Zaznacz i skopiuj ręcznie')); } catch(e) { toast('Zaznacz i skopiuj ręcznie'); } }
   $('#copyLink').onclick = () => copy(guestUrl(), 'Skopiowano link dla gości');
   function stickerCanvas(){
-    const W = Math.round(P.w * K), H = Math.round(P.h * K);
+    const W = Math.round(150 * K), H = Math.round(70 * K);  // grafika 15 × 7 cm
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000';
     const q = qrcode(0, 'M'); q.addData(UID ? guestUrl() : 'https://example.com'); q.make();
@@ -347,16 +383,130 @@ export function mount(root){
   let qrSave = null;
   ['#qrT1', '#qrT2', '#qrT3', '#qrFont'].forEach(id => $(id).addEventListener('change', () => { clearTimeout(qrSave); qrSave = setTimeout(() => fs.updateDoc(refs.bar, {qrText1:$('#qrT1').value, qrText2:$('#qrT2').value, qrText3:$('#qrT3').value, qrFont:$('#qrFont').value}).catch(() => {}), 500); }));
   if (document.fonts) { document.fonts.ready.then(drawStickers); FONTS.forEach(([f]) => document.fonts.load(fontSpec(f, 40)).then(drawStickers).catch(() => {})); }
-  $('#printQr').onclick = async () => { try { await document.fonts.load(fontSpec($('#qrFont').value, 40)); } catch(e) {} printCanvas(stickerCanvas()); };
+  function download(canvas, name){
+    canvas.toBlob(b => { const a = h('a', {href: URL.createObjectURL(b), download: name}); document.body.appendChild(a); a.click(); a.remove(); }, 'image/png');
+  }
+  $('#dlCard').onclick = async () => { try { await document.fonts.load(fontSpec($('#qrFont').value, 40)); } catch(e) {} download(stickerCanvas(), 'moctail-kod-qr-stolik.png'); };
+  $('#dlQr').onclick = () => { const c = document.createElement('canvas'); qrTo(c, guestUrl(), 24); download(c, 'moctail-kod-qr.png'); };
 
-  /* ---------- ustawienia drukarki tego urządzenia ---------- */
-  function fillP(){ $('#pAuto').checked = P.auto; $('#pW').value = P.w; $('#pH').value = P.h; $('#pFont').value = P.font; prnPill(); }
-  function prnPill(){ const el = $('#prn'); el.className = 'pill' + (P.auto ? ' ok' : ''); el.textContent = P.auto ? 'To urządzenie drukuje naklejki' : 'Druk na tym urządzeniu wyłączony'; }
-  function readP(){ P.w = Math.max(20, Math.min(120, +$('#pW').value || 100)); P.h = Math.max(15, Math.min(200, +$('#pH').value || 50)); P.font = $('#pFont').value; saveP(); prnPill(); drawStickers(); }
-  $('#pSave').onclick = () => { readP(); toast('Zapisano ustawienia drukarki na tym urządzeniu'); };
-  $('#pAuto').onchange = () => { P.auto = $('#pAuto').checked; saveP(); prnPill(); if (P.auto) autoPrint(); toast(P.auto ? 'To urządzenie będzie drukować naklejki' : 'Druk wyłączony na tym urządzeniu'); };
-  $('#pTest').onclick = async () => { readP(); try { await document.fonts.load(fontSpec(P.font, 40)); } catch(e) {} printCanvas(orderCanvas({no:17, code:'K7P', itemName:'Virgin Mojito', opts:['bez lodu'], name:'Anna', guest:''})); };
-  fillP();
+
+  /* ---------- raport ---------- */
+  let REP = [], REPR = null;
+  const dayStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const isoDay = d => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
+  const toD = v => v && v.toDate ? v.toDate() : null;
+  const pl = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? b : c;
+  const fmtDay = d => d.toLocaleDateString('pl-PL', {day:'numeric', month:'long', year:'numeric'});
+  $('#repRange').onchange = () => { const c = $('#repRange').value === 'custom'; $('#repFromL').hidden = $('#repToL').hidden = !c; };
+  $('#repFrom').value = $('#repTo').value = isoDay(new Date());
+  function repPeriod(){
+    const v = $('#repRange').value, t0 = dayStart(new Date()), day = 864e5;
+    if (v === 'today') return [t0, new Date(+t0 + day)];
+    if (v === 'yday') return [new Date(+t0 - day), t0];
+    if (v === 'custom') { const a = dayStart(new Date($('#repFrom').value + 'T00:00')), b = dayStart(new Date($('#repTo').value + 'T00:00')); return a <= b ? [a, new Date(+b + day)] : [b, new Date(+a + day)]; }
+    return [new Date(+t0 - (+v - 1) * day), new Date(+t0 + day)];
+  }
+  $('#repGo').onclick = async () => {
+    const [from, to] = repPeriod(); $('#repGo').disabled = true; $('#rep').replaceChildren(h('p', {className:'muted', textContent:'Wczytuję zamówienia…'}));
+    try {
+      const snap = await fs.getDocs(fs.query(refs.orders, fs.where('created', '>=', from), fs.where('created', '<', to), fs.orderBy('created')));
+      REP = snap.docs.map(d => Object.assign({id:d.id}, d.data())); REPR = [from, to];
+      renderReport();
+    } catch(e) { $('#rep').replaceChildren(h('p', {className:'err danger', textContent:errText(e)})); }
+    $('#repGo').disabled = false;
+  };
+  function hbars(rows, total){
+    const max = Math.max(1, ...rows.map(r => r[1]));
+    return h('div', {className:'hbars'}, ...rows.map(([label, n]) => h('div', {className:'hb', title: label + ': ' + n},
+      h('span', {className:'l', textContent:label}),
+      h('span', {className:'t'}, h('span', {className:'b', style:'width:' + Math.max(1.5, n / max * 100) + '%'})),
+      h('span', {className:'v num', textContent: n + (total ? '  ·  ' + Math.round(n / total * 100) + '%' : '')}))));
+  }
+  function vbars(rows, label){
+    // rows: [[etykieta, liczba], ...]; prosty wykres słupkowy w SVG
+    const W = 720, H = 220, pl_ = 8, pb = 26, pt = 22, n = rows.length, max = Math.max(1, ...rows.map(r => r[1]));
+    const bw = (W - pl_ * 2) / n, g = Math.min(14, bw * 0.28), peak = rows.reduce((a, r, i) => r[1] > rows[a][1] ? i : a, 0);
+    const NS = 'http://www.w3.org/2000/svg', el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    const svg = el('svg', {viewBox:`0 0 ${W} ${H}`, class:'vbars', role:'img', 'aria-label':label});
+    svg.append(el('line', {x1:pl_, x2:W - pl_, y1:H - pb + .5, y2:H - pb + .5, class:'base'}));
+    rows.forEach(([lab, v], i) => {
+      const x = pl_ + i * bw + g / 2, w = bw - g, hh = v / max * (H - pb - pt), y = H - pb - hh, r = Math.min(4, w / 2, hh);
+      const grp = el('g', {class:'bar' + (i === peak && v ? ' peak' : '')});
+      const t = el('title', {}); t.textContent = lab + ': ' + v + ' ' + pl(v, 'zamówienie', 'zamówienia', 'zamówień'); grp.append(t);
+      grp.append(el('rect', {x: pl_ + i * bw, y: pt - 6, width: bw, height: H - pb - pt + 6, class:'hit'}));
+      if (v) grp.append(el('path', {d:`M${x},${H - pb}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${H - pb}Z`}));
+      if (v && (n <= 16 || i === peak)) { const tv = el('text', {x: x + w / 2, y: y - 6, class:'val'}); tv.textContent = v; grp.append(tv); }
+      if (n <= 16 || i % Math.ceil(n / 12) === 0) { const tl = el('text', {x: x + w / 2, y: H - 8, class:'lab'}); tl.textContent = lab; grp.append(tl); }
+      svg.append(grp);
+    });
+    return svg;
+  }
+  function renderReport(){
+    const [from, to] = REPR, all = REP;
+    const ok = all.filter(o => ['nowe', 'gotowe', 'wydane'].includes(o.status));
+    const canc = all.filter(o => o.status === 'anulowane').length, rej = all.filter(o => o.status === 'odrzucone').length;
+    const days = Math.round((to - from) / 864e5);
+    const period = days === 1 ? fmtDay(from) : fmtDay(from) + ' – ' + fmtDay(new Date(+to - 1));
+    $('#repPrint').disabled = $('#repCsv').disabled = false;
+    const head = h('section', {className:'card rep-head'}, h('h1', {textContent:(BAR ? BAR.barName : 'Moctail bar') + ': raport'}),
+      h('p', {className:'muted', style:'margin:0', textContent:period + (BAR && BAR.event ? ' · ' + BAR.event : '') + ' · wygenerowano ' + new Date().toLocaleString('pl-PL', {dateStyle:'short', timeStyle:'short'})}));
+    if (!ok.length) { $('#rep').replaceChildren(head, h('section', {className:'card'}, h('p', {className:'muted', style:'margin:0', textContent:'W tym okresie nie było przyjętych zamówień.' + (canc + rej ? ' Anulowane: ' + canc + ', odrzucone: ' + rej + '.' : '')}))); return; }
+    // drinki, dodatki, godziny
+    const cnt = (arr, f) => { const m = new Map(); arr.forEach(o => [].concat(f(o)).forEach(k => k && m.set(k, (m.get(k) || 0) + 1))); return [...m].sort((a, b) => b[1] - a[1]); };
+    const emo = n => { const it = (BAR && BAR.items || []).find(i => i.name === n); return it ? it.emoji + ' ' : ''; };
+    const drinks = cnt(ok, o => o.itemName).map(([n, c]) => [emo(n) + n, c]);
+    const opts = cnt(ok, o => o.opts || []);
+    const hours = new Array(24).fill(0); ok.forEach(o => hours[ts(o).getHours()]++);
+    const used = hours.map((v, i) => v ? i : -1).filter(i => i >= 0), h0 = Math.min(...used), h1 = Math.max(...used);
+    const hourRows = []; for (let i = h0; i <= h1; i++) hourRows.push([String(i).padStart(2, '0') + ':00', hours[i]]);
+    const peakH = hours.indexOf(Math.max(...hours));
+    // najlepsze 15 minut
+    const q = new Map(); ok.forEach(o => { const d = ts(o), k = isoDay(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(Math.floor(d.getMinutes() / 15) * 15).padStart(2, '0'); q.set(k, (q.get(k) || 0) + 1); });
+    const best15 = [...q].sort((a, b) => b[1] - a[1])[0];
+    // czas przygotowania: od złożenia do „Gotowe” (mediana, bez skrajnych > 2 h)
+    const waits = ok.map(o => { const r = toD(o.readyAt); return r ? (r - ts(o)) / 60000 : null; }).filter(v => v != null && v >= 0 && v < 120).sort((a, b) => a - b);
+    const med = waits.length ? waits[Math.floor(waits.length / 2)] : null;
+    const fmtMin = m => m == null ? '—' : m < 1 ? '< 1 min' : Math.round(m) + ' min';
+    const guests = new Set(ok.map(o => (o.guest || '').trim().toUpperCase()).filter(Boolean)).size;
+    const tile = (lab, val, sub) => h('div', {className:'tile'}, h('span', {className:'k', textContent:lab}), h('span', {className:'v', textContent:val}), sub ? h('span', {className:'s', textContent:sub}) : null);
+    const tiles = h('section', {className:'tiles'},
+      tile('Zamówienia', String(ok.length), ok.filter(o => o.status === 'wydane').length + ' wydanych'),
+      tile('Najpopularniejszy', drinks[0][0], drinks[0][1] + ' ' + pl(drinks[0][1], 'zamówienie', 'zamówienia', 'zamówień') + ' · ' + Math.round(drinks[0][1] / ok.length * 100) + '%'),
+      tile('Godzina szczytu', String(peakH).padStart(2, '0') + ':00–' + String(peakH + 1).padStart(2, '0') + ':00', hours[peakH] + ' ' + pl(hours[peakH], 'zamówienie', 'zamówienia', 'zamówień')),
+      tile('Czas przygotowania', fmtMin(med), waits.length ? 'mediana z ' + waits.length + ' ' + pl(waits.length, 'zamówienia', 'zamówień', 'zamówień') : 'brak danych'),
+      tile(guests ? 'Różnych gości' : 'Anulowane / odrzucone', guests ? String(guests) : canc + ' / ' + rej, guests ? 'po kodzie z identyfikatora' : ''));
+    const sections = [head, tiles];
+    sections.push(h('section', {className:'card'}, h('h2', {textContent:'Zamówienia w poszczególnych godzinach' + (days > 1 ? ' (suma z ' + days + ' dni)' : '')}), vbars(hourRows, 'Zamówienia na godzinę'),
+      best15 ? h('p', {className:'muted', style:'margin:6px 0 0;font-size:12px', textContent:'Najbardziej obłożony kwadrans: ' + (days > 1 ? best15[0] : best15[0].slice(11)) + ' (' + best15[1] + ' ' + pl(best15[1], 'zamówienie', 'zamówienia', 'zamówień') + ').'}) : null));
+    if (days > 1) {
+      const dm = new Map(); for (let d = +from; d < +to; d += 864e5) dm.set(isoDay(new Date(d)), 0);
+      ok.forEach(o => { const k = isoDay(ts(o)); dm.set(k, (dm.get(k) || 0) + 1); });
+      sections.push(h('section', {className:'card'}, h('h2', {textContent:'Zamówienia dziennie'}), vbars([...dm].map(([k, v]) => [k.slice(8) + '.' + k.slice(5, 7), v]), 'Zamówienia dziennie')));
+    }
+    sections.push(h('section', {className:'grid2r'},
+      h('div', {className:'card'}, h('h2', {textContent:'Ranking drinków'}), hbars(drinks, ok.length)),
+      h('div', {className:'card'}, h('h2', {textContent:'Dodatki'}), opts.length ? hbars(opts, ok.length) : h('p', {className:'muted', textContent:'Nikt nie wybierał dodatków.'}))));
+    // godzina po godzinie
+    const rows = hourRows.filter(r => r[1]).map(([lab]) => {
+      const hr = +lab.slice(0, 2), os = ok.filter(o => ts(o).getHours() === hr), top = cnt(os, o => o.itemName)[0];
+      const w = os.map(o => { const r = toD(o.readyAt); return r ? (r - ts(o)) / 60000 : null; }).filter(v => v != null && v >= 0 && v < 120).sort((a, b) => a - b);
+      return h('tr', {}, h('td', {className:'num', textContent:lab + '–' + String(hr + 1).padStart(2, '0') + ':00'}), h('td', {className:'num', textContent:os.length}),
+        h('td', {textContent: top ? emo(top[0]) + top[0] + ' (' + top[1] + ')' : '—'}), h('td', {className:'num', textContent: fmtMin(w.length ? w[Math.floor(w.length / 2)] : null)}));
+    });
+    sections.push(h('section', {className:'card'}, h('h2', {textContent:'Godzina po godzinie'}), h('div', {className:'tablewrap'}, h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {textContent:'Godzina'}), h('th', {textContent:'Zamówień'}), h('th', {textContent:'Najczęściej zamawiany'}), h('th', {textContent:'Czas przygotowania'}))),
+      h('tbody', {}, ...rows)))));
+    sections.push(h('p', {className:'muted', style:'font-size:12px;margin:0', textContent:'Anulowane: ' + canc + ' · odrzucone automatycznie (np. limit na kod, wstrzymane zamówienia): ' + rej + '. Czas przygotowania liczony od złożenia zamówienia do kliknięcia „Gotowe” (dostępny dla zamówień od tej wersji panelu).'}));
+    $('#rep').replaceChildren(...sections);
+  }
+  $('#repPrint').onclick = () => window.print();
+  $('#repCsv').onclick = () => {
+    const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', t = d => d ? d.toLocaleString('pl-PL') : '';
+    const lines = [['Kod','Numer','Złożone','Gotowe','Wydane','Drink','Dodatki','Imię','Kod gościa','Status'].join(';')].concat(
+      REP.map(o => [o.code, o.no || '', t(ts(o)), t(toD(o.readyAt)), t(toD(o.doneAt)), o.itemName, (o.opts || []).join(', '), o.name, o.guest, o.status].map(esc).join(';')));
+    const a = h('a', {href: URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], {type:'text/csv'})), download:'moctail-raport-' + isoDay(REPR[0]) + '.csv'});
+    document.body.appendChild(a); a.click(); a.remove();
+  };
 
   /* zakładki */
   function tab(t){
@@ -367,7 +517,7 @@ export function mount(root){
     if (t === 'qr') drawStickers();
   }
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = e => { e.preventDefault(); tab(b.dataset.tab); });
-  tab((() => { try { return localStorage.getItem('moctail-tab') || 'zam'; } catch(e) { return 'zam'; } })());
+  tab((() => { try { const t = localStorage.getItem('moctail-tab'); return ['zam','ekran','menu','qr','raport'].includes(t) ? t : 'zam'; } catch(e) { return 'zam'; } })());
 
   /* ekran nie gaśnie, gdy panel jest otwarty */
   async function wake(){ try { if (navigator.wakeLock && !document.hidden) await navigator.wakeLock.request('screen'); } catch(e) {} }
