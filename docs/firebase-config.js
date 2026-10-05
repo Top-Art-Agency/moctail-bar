@@ -1,5 +1,5 @@
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSy…",
+  apiKey: "AIzaSyC9WlZt6Hsb13IPulooOZcKJOZuIMFvINU",
   authDomain: "moctail-bar.firebaseapp.com",
   projectId: "moctail-bar",
   storageBucket: "moctail-bar.firebasestorage.app",
