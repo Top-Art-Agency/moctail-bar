@@ -7,6 +7,7 @@ rules_version = '2';
 // bars/{uid}/orders/{id}      zamówienia (gość może złożyć i podejrzeć swoje po numerze)
 // bars/{uid}/public/board     tablica dla ekranu wydawki (czyta każdy)
 // bars/{uid}/private/counter  licznik numerów zamówień (tylko obsługa)
+// config/main                 które konto prowadzi bar na tej stronie (zapisuje pierwsze zalogowane konto)
 //
 // {uid} to identyfikator konta obsługi z Firebase Authentication.
 
@@ -15,6 +16,12 @@ service cloud.firestore {
 
     function isOwner(barId) {
       return request.auth != null && request.auth.uid == barId;
+    }
+
+    match /config/{docId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.bar == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.bar == request.auth.uid;
     }
 
     match /bars/{barId} {
