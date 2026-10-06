@@ -13,6 +13,7 @@ export { fs, au };
 // Polskie komunikaty dla najczęstszych błędów Firebase
 export function errText(e){
   const c = (e && e.code) || '';
+  if (c.includes('resource-exhausted')) return 'Wyczerpany dzienny darmowy limit Firebase. Baza zadziała znowu po 9:00 (albo po włączeniu planu Blaze).';
   if (c.includes('permission-denied')) return 'Brak uprawnień. Sprawdź reguły bezpieczeństwa Firestore (plik firestore.rules).';
   if (c.includes('unavailable') || c.includes('network')) return 'Brak połączenia z internetem.';
   if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found') || c.includes('invalid-email')) return 'Zły e-mail albo hasło.';
